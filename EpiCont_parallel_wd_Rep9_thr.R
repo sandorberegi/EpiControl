@@ -47,6 +47,9 @@ Action_space <- data.frame (
   cost_of_NPI = c(0.0, 0.15)
 )
 
+LD_on <- 14
+LD_off <- 7
+
 #Sim and control options
 cost_sel <- 1L # : bilinear+oveshoot, 2: flat+quadratic for overshoot, 3: ReLu + Overshoot
 use_inc <- 1L #1: control for incidence, 0: control for infectiousness
@@ -74,7 +77,7 @@ n_ens <- 100L #MC assembly size for 4
 sim_ens <- 100L #assembly size for full simulation
 
 #Frequecy of policy review
-rf <- 14L #days 14
+rf <- 1L #days 14
 R_est_wind <- 5L #rf-2 #window for R estimation
 use_S <- 0L
 
@@ -134,7 +137,7 @@ clusterEvalQ(cl, {
 })
 
 results <- pblapply(1:sim_ens, function(jj) {
-  episim_data_ens[[jj]] <- Epi_MPC_run_wd(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, r_dir = 0, N = N)
+  episim_data_ens[[jj]] <- Epi_MPC_run_wd_thr3(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, r_dir = 2, N = N)
 }, cl=cl)
 
 episim_data_ens <- results
@@ -148,10 +151,8 @@ for (jj in 1:sim_ens) {
   episim_data_ens[[jj]]["I_cum"] <- cumsum(episim_data_ens[[jj]]["I"])
 }
 
-
-
 #for (jj in 1:sim_ens) {
-#  episim_data_ens[[jj]] <- Epi_MPC_run_wd(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, r_dir = 2, N = N)
+#  episim_data_ens[[jj]] <- Epi_MPC_run_wd_thr(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, r_dir = 2, N = N)
 #  setTxtProgressBar(pb,jj)
 #}
 #close(pb)
@@ -175,23 +176,20 @@ quantile_vals <- c(0.025, 0.5, 0.975)
 library(dplyr)
 summary_data <- combined_data %>%
   group_by(days) %>%
-  summarise(q5 = quantile(C, probs = 0.05),
-            mean = mean(C),
-            q95 = quantile(C, probs = 0.95))
+  summarise(q5 = quantile(Deaths, probs = 0.05),
+            mean = mean(Deaths),
+            q95 = quantile(Deaths, probs = 0.95))
 
 summary_data
 
 ggplot() +
-  geom_line(data = combined_data, aes(x = days, y = C), color = "grey", alpha = 0.3) +
+  geom_line(data = combined_data, aes(x = days, y = Deaths), color = "grey", alpha = 0.3) +
   geom_line(data = summary_data, aes(x = days, y = mean), color = "red", size = 1) +
   geom_ribbon(data = summary_data, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "red") +
   labs(x = "Time", y = "Ensemble average")
 
 cls <- rep("grey", sim_ens)
 cls[1] <- "red"
-
-cls2 <- rep("red", 2*sim_ens)
-cls2[101:(2*sim_ens)] <- "blue"
 
 ggplot() +
   geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = C, color = as.factor(sim_id)), alpha = 0.3) +
@@ -213,11 +211,11 @@ ggplot() +
   geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = I), color = "darkred", alpha = 1.0) +
   geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = C), color = "red", alpha = 1.0) +
   geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = 200*Deaths), color = "blue", alpha = 1.0) +
-  geom_hline(yintercept = 200*D_target, linetype = "dashed", color = "purple", size=0.25) +
-  geom_hline(yintercept = 200*D_target_pen, linetype = "dashed", color = "blue", size=0.25) +
+  geom_hline(yintercept = 200*LD_on, linetype = "dashed", color = "purple", size=0.25) +
+  geom_hline(yintercept = 200*LD_off, linetype = "dashed", color = "blue", size=0.25) +
   scale_y_continuous(
-    name = "I and C",
-    sec.axis = sec_axis(~./200, name = "ICU Cases")
+    name = "I",
+    sec.axis = sec_axis(~./200, name = "ICU cases")
   ) +
   labs(x = "Days", y = "I") +
   scale_color_manual(values = cls) +
@@ -263,35 +261,32 @@ ggplot(combined_data %>% filter(sim_id == 1)) +
   geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = C, color = as.factor(sim_id)), alpha = 0.1) +
   geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
   geom_line(aes(x = days, y = I, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, size=0.25) +
-  geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", size=0.25) +
   labs(x = "Days", y = "Reported cases and true infections", color = "Policy") +
   scale_color_manual(values = c("No intervention" = "chartreuse3", "Lockdown" = "red")) +
   guides(color = guide_legend(title = "Policy"))
 
+# Replace NA values with 0 for rolling sum calculations
+#combined_data["D_roll"] <- rollsum(combined_data["Deaths"], 7, fill = NA)
+#combined_data["I_roll"] <- rollsum(combined_data["I"], 7, fill = NA)
 
+thr_data <- read.csv("data_report9_remake_thr.csv")
+filtered_thr_data <- thr_data %>% filter(sim_id < 10)
 
 # Plotting the data
-ggplot(combined_data %>% filter(sim_id == 1)) +
-  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = D_roll, color = as.factor(sim_id)), alpha = 0.1) +
+ggplot(filtered_thr_data %>% filter(sim_id == 1)) +
+  geom_line(data = subset(filtered_thr_data, sim_id != 1), aes(x = days, y = D_roll, color = as.factor(sim_id)), alpha = 0.1) +
   geom_line(aes(x = days, y = D_roll, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
   geom_line(aes(x = days, y = D_roll, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, size=0.25) +
-  geom_hline(yintercept = 7*D_target, linetype = "dashed", color = "blue", size=0.25) +
+  geom_hline(yintercept = 7*LD_on, linetype = "dashed", color = "blue", size=0.25) +
+  geom_hline(yintercept = 7*LD_off, linetype = "dashed", color = "purple", size=0.25) +
   labs(x = "Days", y = "Reported cases (rolling weekly", color = "Policy") +
   scale_color_manual(values = c("No intervention" = "chartreuse3", "Lockdown" = "red")) +
   guides(color = guide_legend(title = "Policy")) +
   scale_y_continuous(
-    name = "Deaths",
+    name = "ICU cases (weekly, rolling)",
     sec.axis = sec_axis(~./100, name = "R")
   ) +
-  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = 100*Re), color = "darkred", size=0.25, alpha = 1.0)
-
-
-ggplot() +
-  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.3) +
-  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = D_cum), color = "red", alpha = 1.0) +
-  labs(x = "Days", y = "ICU cases (Cummulative)") +
-  scale_color_manual(values = cls) +
-  guides(color = FALSE)
+  geom_line(data = subset(filtered_thr_data, sim_id == 1), aes(x = days, y = 100*Re), color = "darkred", size=0.25, alpha = 1.0)
 
 # Extract the policy vector
 policy_vector <- episim_data_ens[[1]]["policy"]
@@ -311,67 +306,6 @@ ratio <- true_count / (true_count + false_count)
 # Print the result
 ratio
 
-filename <- paste0("data_report9_remake_opt", ".csv")
-
-# Write the dataframe to a CSV file
-#write.csv(combined_data, filename, row.names = FALSE)
-
-thr_data <- read.csv("data_report9_remake_thr.csv")
-thr_data["sim_id"] <- thr_data["sim_id"]+100
-
-opt_data <- read.csv("data_report9_remake_opt.csv")
-
-filtered_data_opt <- opt_data %>% filter(sim_id < 10)
-
-library(dplyr)
-
-ggplot() +
-  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.1) +
-  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = D_cum), color = "red", alpha = 1.0, size=1.0) +
-  geom_line(data = subset(thr_data, sim_id != 101), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.1) +
-  geom_line(data = subset(thr_data, sim_id == 101), aes(x = days, y = D_cum), color = "blue", alpha = 1.0, size=1.0) +
-  labs(x = "Days", y = "ICU cases (Cummulative)") +
-  scale_color_manual(values = cls2) +
-  guides(color = FALSE)
-
-opt_data <- read.csv("data_report9_remake_thr.csv")
-
-# Plotting the data
-ggplot(opt_data %>% filter(sim_id == 1)) +
-  geom_line(data = subset(filtered_data_opt, sim_id != 1), aes(x = days, y = D_roll, color = as.factor(sim_id)), alpha = 0.1) +
-  geom_line(aes(x = days, y = D_roll, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
-  geom_line(aes(x = days, y = D_roll, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, size=0.25) +
-  geom_hline(yintercept = 7*D_target, linetype = "dashed", color = "blue", size=0.25) +
-  labs(x = "Days", y = "ICU cases (rolling weekly)", color = "Policy") +
-  scale_color_manual(values = c("No intervention" = "chartreuse3", "Lockdown" = "red")) +
-  guides(color = guide_legend(title = "Policy")) +
-  scale_y_continuous(
-    name = "ICU cases (rolling weekly)",
-    sec.axis = sec_axis(~./100, name = "R")
-  ) +
-  geom_line(data = subset(opt_data, sim_id == 1), aes(x = days, y = 100*Re), color = "darkred", size=0.25, alpha = 1.0)
-
-
-sum(opt_data["Deaths"])/100
-
-policy_vector <- opt_data["policy"]
-
-# Create a Boolean vector where TRUE represents 'policy == 1'
-bool_vector <- policy_vector == 2
-
-# Count the number of TRUEs (1s)
-true_count <- sum(bool_vector)
-
-# Count the number of FALSEs (0s)
-false_count <- length(bool_vector) - true_count
-
-# Calculate the ratio of TRUEs to FALSEs
-ratio <- true_count / (true_count + false_count)
-
-# Print the result
-ratio
-
-
 # Find the start of each series of 2s
 series_of_twos <- c(FALSE, diff(bool_vector) == 1)
 
@@ -382,4 +316,14 @@ num_series_of_twos <- sum(series_of_twos)
 num_series_of_twos/100
 
 
+ggplot() +
+  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.3) +
+  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = D_cum), color = "red", alpha = 1.0) +
+  labs(x = "Days", y = "ICU cases (Cummulative)") +
+  scale_color_manual(values = cls) +
+  guides(color = FALSE)
 
+filename <- paste0("data_report9_remake_thr_avg", ".csv")
+
+# Write the dataframe to a CSV file
+write.csv(combined_data, filename, row.names = FALSE)

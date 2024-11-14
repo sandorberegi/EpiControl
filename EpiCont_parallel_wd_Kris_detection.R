@@ -10,7 +10,7 @@ cl <- makeCluster(cores)
 
 Epi_pars = data.frame (
   Pathogen = c("COVID-19", "Ebola"),
-  R0 = c(2.2, 2.5),
+  R0 = c(2.5, 2.5),
   gen_time = c(6.5, 15.0),
   gen_time_var = c(2.1, 2.1),
   CFR = c(0.0132, 0.5),
@@ -29,20 +29,28 @@ logistic_function <- function(t, R0, R1, r, t0) {
 }
 
 I0 <- 10L #initial no. of infections
-ndays <- 81L*7L#epidemic length
+ndays <- 20L*7L#epidemic length
 N <- 1e7 #Total population (if we account for susceptibles)
 
+#Noise_pars <- data.frame (
+#  repd_mean = 10.5, #Reporting delay mean
+#  del_disp = 5.0, #Reporting delay variance
+#  ur_mean = 0.3, #Under reporting, mean/variance
+#  ur_beta_a = 50.0
+#)
+
+# This is for Kris's noise model
 Noise_pars <- data.frame (
-  repd_mean = 10.5, #Reporting delay mean
-  del_disp = 5.0, #Reporting delay variance
-  ur_mean = 0.3, #Under reporting, mean/variance
-  ur_beta_a = 50.0
+  mtau = 10.8, #Reporting delay mean
+  r = 10.0, #Reporting delay variance
+  ur_mean = 0.38, #Under reporting, mean/variance
+  ur_beta_b = 20.0
 )
 
 # Setting-up the control (using non-pharmaceutical interventions)
 Action_space <- data.frame (
   NPI = c("No restrictions", "Lockdown"),
-  R_coeff = c(1.0, 0.3), #R0_act = R0 * ctrl_states
+  R_coeff = c(1.0, 0.2), #R0_act = R0 * ctrl_states
   R_beta_a = c(0.0, 5.0), #R0_act uncertainty
   cost_of_NPI = c(0.0, 0.15)
 )
@@ -61,12 +69,12 @@ C_target_pen <- C_target*1.5 #overshoot penalty threshold
 R_target <- 1.0
 D_target <- 12
 D_target_pen <- 50 #max death
-alpha <- 0*1.3/C_target #~proportional gain (regulates error in cases) covid
+alpha <- 1.3/C_target #~proportional gain (regulates error in cases) covid
 #alpha = 3.25/C_target #~proportional gain (regulates error in cases) ebola
 #beta <- 0.0 #~derivative gain (regulates error in R)
-alpha_d <- 1.3/D_target
+alpha_d <- 0*1.3/D_target
 ovp <- 0*5.0 #overshoot penalty
-dovp <- 10.0 #death overshoot penalty
+dovp <- 0*10.0 #death overshoot penalty
 gamma <- 0.95 #discounting factor
 
 #Simulation parameters
@@ -74,12 +82,12 @@ n_ens <- 100L #MC assembly size for 4
 sim_ens <- 100L #assembly size for full simulation
 
 #Frequecy of policy review
-rf <- 14L #days 14
+rf <- 7L #days 14
 R_est_wind <- 5L #rf-2 #window for R estimation
-use_S <- 0L
+use_S <- 14L
 
 #Prediction window
-pred_days <- 21L #12L #14 #21 #12
+pred_days <- 12L #12L #14 #21 #12
 
 # Original episim_data
 column_names <- c("days", "sim_id", "I", "Lambda", "C", "Lambda_C", "S", "Deaths", "Re", "Rew", "Rest", "R0est", "policy", "R_coeff")
@@ -134,7 +142,7 @@ clusterEvalQ(cl, {
 })
 
 results <- pblapply(1:sim_ens, function(jj) {
-  episim_data_ens[[jj]] <- Epi_MPC_run_wd(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, r_dir = 0, N = N)
+  episim_data_ens[[jj]] <- Epi_MPC_run_wd_K(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 1, ur = 1, r_dir = 1, N = N)
 }, cl=cl)
 
 episim_data_ens <- results
@@ -260,9 +268,9 @@ policy_labels <- c("1" = "No intervention", "2" = "Lockdown")
 
 # Plot with continuous lines and custom labels
 ggplot(combined_data %>% filter(sim_id == 1)) +
-  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = C, color = as.factor(sim_id)), alpha = 0.1) +
-  geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
-  geom_line(aes(x = days, y = I, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, size=0.25) +
+  geom_step(data = subset(combined_data, sim_id != 1), aes(x = days, y = C, color = as.factor(sim_id)), alpha = 0.1) +
+  geom_step(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
+  geom_step(aes(x = days, y = I, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, size=0.25) +
   geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", size=0.25) +
   labs(x = "Days", y = "Reported cases and true infections", color = "Policy") +
   scale_color_manual(values = c("No intervention" = "chartreuse3", "Lockdown" = "red")) +
@@ -293,93 +301,140 @@ ggplot() +
   scale_color_manual(values = cls) +
   guides(color = FALSE)
 
-# Extract the policy vector
-policy_vector <- episim_data_ens[[1]]["policy"]
 
-# Create a Boolean vector where TRUE represents 'policy == 1'
-bool_vector <- policy_vector == 2
+# Save episim_data_ens to a single .rds file
+saveRDS(episim_data_ens, file = "episim_data_KP_paper_with_noise.rds")
+# Load the data back into R
+#episim_data_ens <- readRDS("episim_data_KP_paper_no_noise.rds")
 
-# Count the number of TRUEs (1s)
-true_count <- sum(bool_vector)
+# Initialize lists to collect the results
+change_1_to_2_list <- list()
+change_2_to_1_list <- list()
+difference_list <- list()
+ratio_list <- list()
 
-# Count the number of FALSEs (0s)
-false_count <- length(bool_vector) - true_count
+# Loop through 'ii' from 1 to 'sim_ens'
+for (ii in 1:sim_ens) {
+  # Extract the policy vector
+  policy_vector <- (episim_data_ens[[ii]]["policy"])$policy
 
-# Calculate the ratio of TRUEs to FALSEs
-ratio <- true_count / (true_count + false_count)
+  # Create a Boolean vector where TRUE represents 'policy == 2'
+  bool_vector <- policy_vector == 2
 
-# Print the result
-ratio
+  # Count the number of TRUEs (1s)
+  true_count <- sum(bool_vector)
 
-filename <- paste0("data_report9_remake_opt", ".csv")
+  # Count the number of FALSEs (0s)
+  false_count <- length(bool_vector) - true_count
 
-# Write the dataframe to a CSV file
-#write.csv(combined_data, filename, row.names = FALSE)
+  # Calculate the ratio of TRUEs to FALSEs
+  ratio <- true_count / (true_count + false_count)
 
-thr_data <- read.csv("data_report9_remake_thr.csv")
-thr_data["sim_id"] <- thr_data["sim_id"]+100
+  # Append the ratio to the ratio list
+  ratio_list[[ii]] <- ratio
 
-opt_data <- read.csv("data_report9_remake_opt.csv")
+  # Find the index where it first changes from 1 to 2
+  change_1_to_2 <- which(policy_vector[-1] == 2 & policy_vector[-length(policy_vector)] == 1)[1] + 1
 
-filtered_data_opt <- opt_data %>% filter(sim_id < 10)
+  # Find the index where it first changes from 2 to 1
+  change_2_to_1 <- which(policy_vector[-1] == 1 & policy_vector[-length(policy_vector)] == 2)[1] + 1
 
-library(dplyr)
+  # Calculate the difference
+  difference <- change_2_to_1 - change_1_to_2
 
-ggplot() +
-  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.1) +
-  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = D_cum), color = "red", alpha = 1.0, size=1.0) +
-  geom_line(data = subset(thr_data, sim_id != 101), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.1) +
-  geom_line(data = subset(thr_data, sim_id == 101), aes(x = days, y = D_cum), color = "blue", alpha = 1.0, size=1.0) +
-  labs(x = "Days", y = "ICU cases (Cummulative)") +
-  scale_color_manual(values = cls2) +
-  guides(color = FALSE)
+  # Append the results to the lists
+  change_1_to_2_list[[ii]] <- change_1_to_2
+  change_2_to_1_list[[ii]] <- change_2_to_1
+  difference_list[[ii]] <- difference
+}
 
-opt_data <- read.csv("data_report9_remake_thr.csv")
+# Convert lists to numeric vectors
+changes <- unlist(change_1_to_2_list)/rf
+changes2 <- unlist(change_2_to_1_list)/rf
+differences <- unlist(difference_list)/rf
 
-# Plotting the data
-ggplot(opt_data %>% filter(sim_id == 1)) +
-  geom_line(data = subset(filtered_data_opt, sim_id != 1), aes(x = days, y = D_roll, color = as.factor(sim_id)), alpha = 0.1) +
-  geom_line(aes(x = days, y = D_roll, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
-  geom_line(aes(x = days, y = D_roll, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, size=0.25) +
-  geom_hline(yintercept = 7*D_target, linetype = "dashed", color = "blue", size=0.25) +
-  labs(x = "Days", y = "ICU cases (rolling weekly)", color = "Policy") +
+
+# Plot histogram of differences
+#hist(changes, main = "Histogram of Differences", xlab = "LD start in weeks", col = "blue", breaks = seq(min(changes) - 0.5, max(changes) + 0.5, by = 1))
+#hist(changes2, main = "Histogram of Differences", xlab = "LD ending in weeks", col = "blue", breaks = seq(min(changes2) - 0.5, max(changes2) + 0.5, by = 1))
+#hist(differences, main = "Histogram of Differences", xlab = "First LD length in weeks", col = "blue", breaks = seq(min(differences) - 0.5, max(differences) + 0.5, by = 1))
+
+# Set up the layout for 3 subplots in a single row
+par(mfrow = c(3, 1))  # 1 row and 3 columns
+
+# Plot the first histogram (changes)
+hist(changes,
+     main = "Histogram of LD Start",
+     xlab = "LD start in weeks",
+     col = "blue",
+     breaks = seq(min(changes) - 0.5, max(changes) + 0.5, by = 1))
+
+# Plot the second histogram (changes2)
+hist(changes2,
+     main = "Histogram of LD End",
+     xlab = "LD ending in weeks",
+     col = "blue",
+     breaks = seq(min(changes2) - 0.5, max(changes2) + 0.5, by = 1))
+
+# Plot the third histogram (differences)
+hist(differences,
+     main = "Histogram of First LD Length",
+     xlab = "First LD length in weeks",
+     col = "blue",
+     breaks = seq(min(differences) - 0.5, max(differences) + 0.5, by = 1))
+
+# Reset the layout to default (optional)
+par(mfrow = c(1, 1))
+
+
+
+####
+
+# Load required libraries
+library(gridExtra)
+
+# Simulating sample data
+# Left panel plot (with continuous lines and custom labels)
+p1 <- ggplot(combined_data %>% filter(sim_id == 1)) +
+  geom_step(data = subset(combined_data, sim_id != 1), aes(x = days, y = C, color = as.factor(sim_id)), alpha = 0.1) +
+  geom_step(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
+  geom_step(aes(x = days, y = I, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, size=0.25) +
+  geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", size = 0.25) +
+  labs(x = "Days", y = "Reported cases and true infections", color = "Policy") +
   scale_color_manual(values = c("No intervention" = "chartreuse3", "Lockdown" = "red")) +
   guides(color = guide_legend(title = "Policy")) +
-  scale_y_continuous(
-    name = "ICU cases (rolling weekly)",
-    sec.axis = sec_axis(~./100, name = "R")
-  ) +
-  geom_line(data = subset(opt_data, sim_id == 1), aes(x = days, y = 100*Re), color = "darkred", size=0.25, alpha = 1.0)
+  theme(legend.position = c(0.05, 0.95),   # Position the legend in the top left corner
+        legend.justification = c(0, 1))
 
+# Right panel histograms
+hist1 <- ggplot(data.frame(changes), aes(x = changes)) +
+  geom_histogram(aes(y = (..count..) / sum(..count..) * 100),
+                 breaks = seq(7 - 0.5, 11 + 0.5, by = 1),
+                 fill = "blue", color = "black") +
+  ggtitle("LD Start") +
+  xlab("LD start in weeks") +
+  ylab("Percentage (%)")
 
-sum(opt_data["Deaths"])/100
+hist2 <- ggplot(data.frame(changes2), aes(x = changes2)) +
+  geom_histogram(aes(y = (..count..) / sum(..count..) * 100),
+                 breaks = seq(8 - 0.5, 16 + 0.5, by = 1),
+                 fill = "blue", color = "black") +
+  ggtitle("LD End") +
+  xlab("LD ending in weeks") +
+  ylab("Percentage (%)")
 
-policy_vector <- opt_data["policy"]
+hist3 <- ggplot(data.frame(differences), aes(x = differences)) +
+  geom_histogram(aes(y = (..count..) / sum(..count..) * 100),
+                 breaks = seq(1 - 0.5, 6 + 0.5, by = 1),
+                 fill = "blue", color = "black") +
+  ggtitle("First LD Length") +
+  xlab("First LD length in weeks") +
+  ylab("Percentage (%)")
 
-# Create a Boolean vector where TRUE represents 'policy == 1'
-bool_vector <- policy_vector == 2
+# Combine histograms into a grid
+hist_plots <- grid.arrange(hist1, hist2, hist3, ncol = 1)
 
-# Count the number of TRUEs (1s)
-true_count <- sum(bool_vector)
+# Arrange left and right panels side by side with different widths
+grid.arrange(p1, hist_plots, ncol = 2, widths = c(2, 1))  # Left panel is twice as wide as the right one
 
-# Count the number of FALSEs (0s)
-false_count <- length(bool_vector) - true_count
-
-# Calculate the ratio of TRUEs to FALSEs
-ratio <- true_count / (true_count + false_count)
-
-# Print the result
-ratio
-
-
-# Find the start of each series of 2s
-series_of_twos <- c(FALSE, diff(bool_vector) == 1)
-
-# Count the number of series (where TRUE is found after a change)
-num_series_of_twos <- sum(series_of_twos)
-
-# Print the result
-num_series_of_twos/100
-
-
-
+save(episim_data_ens, file = "episim_data_ens_with_noise.RData")

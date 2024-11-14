@@ -28,7 +28,7 @@ logistic_function <- function(t, R0, R1, r, t0) {
 }
 
 I0 <- 10L #initial no. of infections
-ndays <- 81L*7L#epidemic length
+ndays <- 41L*7L#epidemic length
 N <- 3.5e6 #Total population (if we account for susceptibles)
 
 Noise_pars <- data.frame (
@@ -70,7 +70,7 @@ gamma <- 0.95 #discounting factor
 
 #Simulation parameters
 n_ens <- 100L #MC assembly size for 4
-sim_ens <- 100L #assembly size for full simulation
+sim_ens <- 50L #assembly size for full simulation
 
 #Frequecy of policy review
 rf <- 7L #days 14
@@ -133,7 +133,7 @@ clusterEvalQ(cl, {
 })
 
 results <- pblapply(1:sim_ens, function(jj) {
-  episim_data_ens[[jj]] <- Epi_MPC_run_wd(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, r_dir = 0, N = N)
+  episim_data_ens[[jj]] <- Epi_MPC_run_wd(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, r_dir = 0, N = N)
 }, cl=cl)
 
 episim_data_ens <- results
@@ -141,6 +141,16 @@ stopCluster(cl)
 
 for (jj in 1:sim_ens) {
   episim_data_ens[[jj]] <- head(episim_data_ens[[jj]], -pred_days)
+}
+
+for (i in seq_along(episim_data_ens)) {
+  # Add the cost_of_NPI column by looking up Action_space
+  episim_data_ens[[i]]$cost_of_NPI <- sapply(episim_data_ens[[i]]$policy, function(ix) {
+    Action_space[ix, "cost_of_NPI"]
+  })
+
+  # Add the cumulative sum of the cost_of_NPI column
+  episim_data_ens[[i]]$cumsum_cost_of_NPI <- cumsum(episim_data_ens[[i]]$cost_of_NPI)
 }
 
 
@@ -234,7 +244,7 @@ ggplot() +
 ggplot() +
   geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = R0est, color = as.factor(sim_id)), alpha = 0.3) +
   geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = R0est), color = "red", alpha = 1.0) +
-  labs(x = "Days", y = "R0 estimate") +
+  labs(x = "Days", y = "R0*S/N estimate") +
   scale_color_manual(values = cls) +
   guides(color = FALSE)
 
@@ -251,21 +261,42 @@ combined_data <- combined_data %>%
 policy_labels <- c("1" = "No restrictions", "2" = "SD1", "3" = "SD2", "4" = "SD3", "5" = "SD4")
 #c("No intervention" = "chartreuse3", "SD1" = "aquamarine", "SD2" = "darkgoldenrod1", "SD3" = "deeppink", "SD4" = "darkorchid1", "Lockdown" = "red"))
 
+library(zoo) # for the rollsum function
+
+# Replace NA values with 0 for rolling sum calculations
+combined_data["D_roll"] <- rollsum(combined_data["Deaths"], 7, fill = NA)
+combined_data["I_roll"] <- rollsum(combined_data["I"], 7, fill = NA)
+
+
+# find the day when herd immunity reached
+
+# Sample constant value
+HI <- 1/Epi_pars[1,"R0"]
+
+# Assuming episim_data_ens[[1]]["S"] is a dataframe or list
+# Extract the vector
+S_vector <- episim_data_ens[[1]]["S"][[1]]
+
+# Compute the fraction S/N
+fraction <- S_vector / N
+
+# Find the index where the fraction is first smaller than the constant
+index <- which(fraction < HI)[1]
+
+# Output the result
+index
+
 # Plot with continuous lines and custom labels
 ggplot(combined_data %>% filter(sim_id == 1)) +
   geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = C, color = as.factor(sim_id)), alpha = 0.1) +
   geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
   geom_line(aes(x = days, y = I, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, size=0.25) +
   geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", size=0.25) +
+  geom_vline(xintercept = index, linetype = "dashed", color = "black", size=0.25) +
   labs(x = "Days", y = "Reported cases and true infections", color = "Policy") +
   scale_color_manual(values = c("SD1" = "aquamarine", "SD2" = "darkgoldenrod1", "SD3" = "deeppink", "SD4" = "darkorchid1", "No restrictions" = "chartreuse3")) +
   guides(color = guide_legend(title = "Policy"))
 
-library(zoo) # for the rollsum function
-
-# Replace NA values with 0 for rolling sum calculations
-combined_data["D_roll"] <- rollsum(combined_data["Deaths"], 7, fill = NA)
-combined_data["I_roll"] <- rollsum(combined_data["I"], 7, fill = NA)
 
 # Plotting the data
 ggplot(combined_data %>% filter(sim_id == 1)) +
@@ -273,6 +304,7 @@ ggplot(combined_data %>% filter(sim_id == 1)) +
   geom_line(aes(x = days, y = D_roll, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
   geom_line(aes(x = days, y = D_roll, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, size=0.25) +
   geom_hline(yintercept = 7*D_target, linetype = "dashed", color = "blue", size=0.25) +
+  geom_vline(xintercept = index, linetype = "dashed", color = "black", size=0.25) +
   labs(x = "Days", y = "Reported cases (rolling weekly", color = "Policy") +
   scale_color_manual(values = c("SD1" = "aquamarine", "SD2" = "darkgoldenrod1", "SD3" = "deeppink", "SD4" = "darkorchid1", "No restrictions" = "chartreuse3")) +
   guides(color = guide_legend(title = "Policy")) +
@@ -281,3 +313,6 @@ ggplot(combined_data %>% filter(sim_id == 1)) +
     sec.axis = sec_axis(~./100, name = "R")
   ) +
   geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = 100*Re), color = "darkred", size=0.25, alpha = 1.0)
+
+# Write the first dataframe of episim_data_ens to a CSV file
+write.csv(combined_data, "data_6npis_no_s.csv", row.names = FALSE)

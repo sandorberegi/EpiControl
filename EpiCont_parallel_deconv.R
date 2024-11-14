@@ -1,10 +1,9 @@
-## Declaring epidemic & noise parameters
-
 library(VGAM)
 #library(future.apply)
 #library(foreach)
 library(parallel)
 library(pbapply)
+library(fastbeta)
 
 cores=detectCores()-1
 cl <- makeCluster(cores)
@@ -13,16 +12,29 @@ Epi_pars = data.frame (
   Pathogen = c("COVID-19", "Ebola"),
   R0 = c(3.5, 2.5),
   gen_time = c(6.5, 15.0),
-  gen_time_var = c(2.1, 2.1)
+  gen_time_var = c(2.1, 2.1),
+  CFR = c(0.01, 0.5),
+  mortality_mean = c(14.5, 10.0),
+  mortality_var = c(1.1, 1.1)
 )
 
+r_trans_steep <- 1.5  # Growth rate
+r_trans_len <- 7  # Number of days for the transition
+t0 <- r_trans_len  / 2 # Midpoint of the transition
+
+logistic_function <- function(t, R0, R1, r, t0) {
+  K <- R1
+  L <- R0
+  (K-L) / (1 + exp(-r_trans_steep * (t - t0))) + L
+}
+
 I0 <- 10L #initial no. of infections
-ndays <- 101L*7L#epidemic length
-N <- 3.5e6 #Total population (if we account for susceptibles)
+ndays <- 41L*7L#epidemic length
+N <- 1e6 #Total population (if we account for susceptibles)
 
 Noise_pars <- data.frame (
-  repd_mean = 10.5, #Reporting delay mean
-  del_disp = 5.0, #Reporting delay variance
+  repd_mean = 14.5, #Reporting delay mean 10.5
+  del_disp = 1.1, #Reporting delay variance 5.0
   ur_mean = 0.3, #Under reporting, mean/variance
   ur_beta_a = 50.0
 )
@@ -47,10 +59,14 @@ under_rep_on <- 1L #0: no under reporting, 1: calculate with under-reporting
 C_target <- 5000 #target cases
 C_target_pen <- C_target*1.5 #overshoot penalty threshold
 R_target <- 1.0
+D_target <- 50
+D_target_pen <- 1.5*50 #max death
 alpha <- 1.3/C_target #~proportional gain (regulates error in cases) covid
 #alpha = 3.25/C_target #~proportional gain (regulates error in cases) ebola
 #beta <- 0.0 #~derivative gain (regulates error in R)
+alpha_d <- 0*1.3/C_target*100
 ovp <- 5.0 #overshoot penalty
+dovp <- 0*5.0 #death overshoot penalty
 gamma <- 0.95 #discounting factor
 
 #Simulation parameters
@@ -62,11 +78,15 @@ rf <- 7L #days 14
 R_est_wind <- 5L #rf-2 #window for R estimation
 use_S <- 0L
 
+# reconstruct I from C with deconvolution
+deconv_days <- 30L
+deconv_pred <- 15L
+
 #Prediction window
-pred_days <- 12L #14 #21 #12
+pred_days <- 28L #12L #14 #21 #12
 
 # Original episim_data
-column_names <- c("days", "sim_id", "I", "Lambda", "C", "Lambda_C", "S", "Re", "Rew", "Rest", "R0est", "policy", "R_coeff")
+column_names <- c("days", "sim_id", "I", "Lambda", "C", "Lambda_C", "S", "Deaths", "Re", "Rew", "Rest", "R0est", "policy", "R_coeff", "I_estim")
 
 # Create an empty data frame with specified column names
 empty_df <- data.frame(matrix(ncol = length(column_names), nrow = 0))
@@ -85,7 +105,7 @@ episim_data <- rbind(empty_df, zero_matrix)
 episim_data['policy'] <- rep(1, ndays)
 episim_data['sim_id'] <- rep(1, ndays)
 episim_data['days'] <- 1:ndays
-episim_data[1,] <- c(1, 1, I0, I0, Noise_pars['ur_mean']*I0, Noise_pars['ur_mean']*I0, N-I0, Epi_pars[1,'R0'], Epi_pars[1,'R0'], 1, 1, 1)
+episim_data[1,] <- c(1, 1, I0, I0, Noise_pars['ur_mean']*I0, Noise_pars['ur_mean']*I0, N-I0, 0, Epi_pars[1,'R0'], Epi_pars[1,'R0'], 1, 1, 1, 0)
 
 episim_data_ens <- replicate(sim_ens, episim_data, simplify = FALSE)
 
@@ -115,34 +135,35 @@ clusterEvalQ(cl, episim_data_ens)
 clusterEvalQ(cl, {
   library(VGAM)
   library(EpiControl)
+  library(fastbeta)
 })
 
 results <- pblapply(1:sim_ens, function(jj) {
-  episim_data_ens[[jj]] <- Epi_MPC_run(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, N = N)
+  episim_data_ens[[jj]] <- Epi_MPC_run_deconv_wd(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 1, ur = 0, r_dir = 0, N = N)
 }, cl=cl)
 
 episim_data_ens <- results
 stopCluster(cl)
 
-# Loop through all elements of episim_data_ens and add the cost_of_NPI and its cumulative sum
-
-for (i in seq_along(episim_data_ens)) {
-  # Add the cost_of_NPI column by looking up Action_space
-  episim_data_ens[[i]]$cost_of_NPI <- sapply(episim_data_ens[[i]]$policy, function(ix) {
-    Action_space[ix, "cost_of_NPI"]
-  })
-
-  # Add the cumulative sum of the cost_of_NPI column
-  episim_data_ens[[i]]$cumsum_cost_of_NPI <- cumsum(episim_data_ens[[i]]$cost_of_NPI)
+for (jj in 1:sim_ens) {
+  episim_data_ens[[jj]] <- head(episim_data_ens[[jj]], -pred_days)
 }
 
-# Now all elements in episim_data_ens should have the new columns
+
 
 #for (jj in 1:sim_ens) {
-#  episim_data_ens[[jj]] <- Epi_MPC_run(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, N = N)
+#  episim_data_ens[[jj]] <- Epi_MPC_run_wd(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, r_dir = 2, N = N)
 #  setTxtProgressBar(pb,jj)
 #}
 #close(pb)
+
+for (jj in 1:sim_ens) {
+  episim_data_ens[[jj]] <- head(episim_data_ens[[jj]], -pred_days)
+  episim_data_ens[[jj]]["D_roll"] <- rollsum(episim_data_ens[[jj]]["Deaths"], 7, fill = NA)
+  episim_data_ens[[jj]]["I_roll"] <- rollsum(episim_data_ens[[jj]]["I"], 7, fill = NA)
+  episim_data_ens[[jj]]["D_cum"] <- cumsum(episim_data_ens[[jj]]["Deaths"])
+  episim_data_ens[[jj]]["I_cum"] <- cumsum(episim_data_ens[[jj]]["I"])
+}
 
 combined_data <- do.call(rbind, episim_data_ens)
 
@@ -167,12 +188,6 @@ summary_data <- combined_data %>%
             mean = mean(C),
             q95 = quantile(C, probs = 0.95))
 
-summary_data_cost <- combined_data %>%
-  group_by(days) %>%
-  summarise(q5 = quantile(cumsum_cost_of_NPI, probs = 0.05),
-            mean = mean(cumsum_cost_of_NPI),
-            q95 = quantile(cumsum_cost_of_NPI, probs = 0.95))
-
 summary_data
 
 ggplot() +
@@ -180,12 +195,6 @@ ggplot() +
   geom_line(data = summary_data, aes(x = days, y = mean), color = "red", size = 1) +
   geom_ribbon(data = summary_data, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "red") +
   labs(x = "Time", y = "Ensemble average")
-
-ggplot() +
-  geom_line(data = combined_data, aes(x = days, y = cumsum_cost_of_NPI), color = "grey", alpha = 0.3) +
-  geom_line(data = summary_data_cost, aes(x = days, y = mean), color = "red", size = 1) +
-  geom_ribbon(data = summary_data_cost, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "red") +
-  labs(x = "Time", y = "Ensemble average NPI cost")
 
 cls <- rep("grey", sim_ens)
 cls[1] <- "red"
@@ -199,8 +208,38 @@ ggplot() +
   guides(color = FALSE)
 
 ggplot() +
+  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = Deaths, color = as.factor(sim_id)), alpha = 0.3) +
+  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = Deaths), color = "darkred", alpha = 1.0) +
+  labs(x = "Days", y = "Deaths") +
+  scale_color_manual(values = cls) +
+  guides(color = FALSE)
+
+ggplot() +
+  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = C, color = as.factor(sim_id)), alpha = 0.3) +
+  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = I), color = "darkred", alpha = 1.0) +
+  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = C), color = "red", alpha = 1.0) +
+  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = 200*Deaths), color = "blue", alpha = 1.0) +
+  geom_hline(yintercept = 200*D_target, linetype = "dashed", color = "blue", size=0.25) +
+  geom_hline(yintercept = C_target, linetype = "dashed", color = "red", size=0.25) +
+  scale_y_continuous(
+    name = "Reported new infections",
+    sec.axis = sec_axis(~./200, name = "Deaths")
+  ) +
+  labs(x = "Days", y = "I") +
+  scale_color_manual(values = cls) +
+  guides(color = FALSE)
+
+ggplot() +
   geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = Rest, color = as.factor(sim_id)), alpha = 0.3) +
   geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = Rew), color = "darkred", alpha = 1.0) +
+  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = Rest), color = "red", alpha = 1.0) +
+  labs(x = "Days", y = "R") +
+  scale_color_manual(values = cls) +
+  guides(color = FALSE)
+
+ggplot() +
+  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = Rest, color = as.factor(sim_id)), alpha = 0.3) +
+  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = Re), color = "darkred", alpha = 1.0) +
   geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = Rest), color = "red", alpha = 1.0) +
   labs(x = "Days", y = "R") +
   scale_color_manual(values = cls) +
@@ -231,45 +270,36 @@ ggplot(combined_data %>% filter(sim_id == 1)) +
   geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
   geom_line(aes(x = days, y = I, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, size=0.25) +
   geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", size=0.25) +
-  labs(x = "Days", y = "Reported cases and true infections", color = "Policy") +
+  labs(x = "Days", y = "Reported cases", color = "Policy") +
   scale_color_manual(values = c("No intervention" = "chartreuse3", "Social distancing" = "darkorchid1", "Lockdown" = "red")) +
   guides(color = guide_legend(title = "Policy"))
 
-# Write the first dataframe of episim_data_ens to a CSV file
-#write.csv(combined_data, "data_3npis_with_s.csv", row.names = FALSE)
+inc_data <- read.csv("data_ctlr_inc.csv")
+filtered_inc_data <- inc_data %>% filter(sim_id < 10)
+filtered_inc_data <- filtered_inc_data %>% filter(days < 231)
+filtered_inc_data["sim_id"] <- filtered_inc_data["sim_id"]+100
 
-####
+case_data <- read.csv("data_ctlr_cases.csv")
+filtered_case_data <- case_data %>% filter(sim_id < 10)
+filtered_case_data <- filtered_case_data %>% filter(days < 231)
+filtered_case_data["sim_id"] <- filtered_case_data["sim_id"]+200
 
-data3 <- read.csv("data_3npis_with_s.csv")
-data6 <- read.csv("data_6npis_with_s.csv")
-data10 <- read.csv("data_10npis_with_s.csv")
+death_data <- read.csv("data_ctlr_deaths.csv")
+filtered_death_data <- death_data %>% filter(sim_id < 10)
 
-
-summary_data_cost3 <- data3 %>%
-  group_by(days) %>%
-  summarise(q5 = quantile(cumsum_cost_of_NPI, probs = 0.05),
-            mean = mean(cumsum_cost_of_NPI),
-            q95 = quantile(cumsum_cost_of_NPI, probs = 0.95))
-
-summary_data_cost6 <- data6 %>%
-  group_by(days) %>%
-  summarise(q5 = quantile(cumsum_cost_of_NPI, probs = 0.05),
-            mean = mean(cumsum_cost_of_NPI),
-            q95 = quantile(cumsum_cost_of_NPI, probs = 0.95))
-
-summary_data_cost10 <- data10 %>%
-  group_by(days) %>%
-  summarise(q5 = quantile(cumsum_cost_of_NPI, probs = 0.05),
-            mean = mean(cumsum_cost_of_NPI),
-            q95 = quantile(cumsum_cost_of_NPI, probs = 0.95))
+cls2 <- rep("red", 2*sim_ens)
+cls2[9:(2*sim_ens)] <- "blue"
+cls2[19:(2*sim_ens)] <- "green"
 
 ggplot() +
-  geom_line(data = summary_data_cost3, aes(x = days, y = mean), color = "red", size = 1) +
-  geom_ribbon(data = summary_data_cost3, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "red") +
-  geom_line(data = summary_data_cost6, aes(x = days, y = mean), color = "blue", size = 1) +
-  geom_ribbon(data = summary_data_cost6, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "blue") +
-  geom_line(data = summary_data_cost10, aes(x = days, y = mean), color = "magenta", size = 1) +
-  geom_ribbon(data = summary_data_cost10, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "magenta") +
-  labs(x = "Time", y = "Ensemble average NPI cost")
-
+  geom_line(data = subset(filtered_inc_data, sim_id == 101), aes(x = days, y = D_cum), color = "darkred", alpha = 1.0) +
+  geom_line(data = subset(filtered_inc_data, sim_id != 101), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.2) +
+  geom_line(data = subset(filtered_death_data, sim_id == 1), aes(x = days, y = D_cum), color = "blue", alpha = 1.0) +
+  geom_line(data = subset(filtered_death_data, sim_id != 1), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.2) +
+  geom_line(data = subset(filtered_case_data, sim_id == 201), aes(x = days, y = D_cum), color = "darkgreen", alpha = 1.0) +
+  geom_line(data = subset(filtered_case_data, sim_id != 201), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.2) +
+  geom_hline(yintercept = D_target, linetype = "dashed", color = "black", size=0.25) +
+  labs(x = "Days", y = "Deaths (cummulative)") +
+  scale_color_manual(values = cls2) +
+  guides(color = FALSE)
 

@@ -17,8 +17,8 @@ Epi_pars = data.frame (
 )
 
 I0 <- 10L #initial no. of infections
-ndays <- 101L*7L#epidemic length
-N <- 3.5e6 #Total population (if we account for susceptibles)
+ndays <- 51L*7L#epidemic length
+N <- 1e7 #Total population (if we account for susceptibles)
 
 Noise_pars <- data.frame (
   repd_mean = 10.5, #Reporting delay mean
@@ -118,25 +118,69 @@ clusterEvalQ(cl, {
 })
 
 results <- pblapply(1:sim_ens, function(jj) {
-  episim_data_ens[[jj]] <- Epi_MPC_run(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, N = N)
+  episim_data_ens[[jj]] <- Epi_MPC_run(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 1, ur = 0, N = N)
 }, cl=cl)
 
 episim_data_ens <- results
 stopCluster(cl)
 
-# Loop through all elements of episim_data_ens and add the cost_of_NPI and its cumulative sum
+trial_data <- episim_data_ens[[1]]
 
-for (i in seq_along(episim_data_ens)) {
-  # Add the cost_of_NPI column by looking up Action_space
-  episim_data_ens[[i]]$cost_of_NPI <- sapply(episim_data_ens[[i]]$policy, function(ix) {
-    Action_space[ix, "cost_of_NPI"]
-  })
+repd_mean <- Noise_pars[1,'repd_mean'] #Reporting delay mean
+del_disp <- Noise_pars[1,'del_disp'] #Reporting delay variance
 
-  # Add the cumulative sum of the cost_of_NPI column
-  episim_data_ens[[i]]$cumsum_cost_of_NPI <- cumsum(episim_data_ens[[i]]$cost_of_NPI)
-}
+Ydel <- dgamma(1:ndays, del_disp, del_disp/repd_mean)
+Ydel <- (Ydel/sum(Ydel))[1:31]
 
-# Now all elements in episim_data_ens should have the new columns
+plot(Ydel)
+
+library(fastbeta)
+
+set.seed(2L)
+#n <- 200L
+#d <- 50L
+#p <- 0.1
+#prob <- plogis(rlogis(d + n, location = qlogis(p), scale = 0.1))
+
+
+#delay <- diff(pgamma(0L:(d + 1L), 12, 0.4))
+
+#h <- function (x, a = 1, b = 1, c = 0) a * exp(-b * (x - c)^2)
+#ans <- floor(h(seq(-60, 60, length.out = d + n), a = 1000, b = 0.001))
+
+#x0 <- rbinom(d + n, ans, prob)
+#x <- tabulate(rep.int(1L:(d + n), x0) +
+#                sample(0L:d, size = sum(x0), replace = TRUE, prob = delay),
+#              d + n)[-(1L:d)]
+
+x <- trial_data[['C']]
+y <- trial_data[['I']]
+
+str(D0 <- deconvolve(x, 1.0, delay = Ydel, iter.max = 64L, complete = FALSE))
+#str(D1 <- deconvolve(x, 1.0, delay = Ydel, complete =  TRUE))
+
+plot(D0$value)
+plot(x)
+
+trial_data['Deconv_C'] <- D0$value
+
+# Plot x first
+plot(x, type = "l", col = "blue", ylim = range(c(x, D0$value)), ylab = "Values", xlab = "Index", main = "Overlay of x and D0$value")
+
+# Add D0$value to the same plot
+lines((D0$value)[31:(387-15)], col = "red")
+lines(y, col = "black")
+
+# Optionally, add a legend to differentiate between the two
+legend("topright", legend = c("x", "D0$value"), col = c("blue", "red"), lty = 1)
+
+
+
+
+
+
+
+
 
 #for (jj in 1:sim_ens) {
 #  episim_data_ens[[jj]] <- Epi_MPC_run(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, N = N)
@@ -167,12 +211,6 @@ summary_data <- combined_data %>%
             mean = mean(C),
             q95 = quantile(C, probs = 0.95))
 
-summary_data_cost <- combined_data %>%
-  group_by(days) %>%
-  summarise(q5 = quantile(cumsum_cost_of_NPI, probs = 0.05),
-            mean = mean(cumsum_cost_of_NPI),
-            q95 = quantile(cumsum_cost_of_NPI, probs = 0.95))
-
 summary_data
 
 ggplot() +
@@ -180,12 +218,6 @@ ggplot() +
   geom_line(data = summary_data, aes(x = days, y = mean), color = "red", size = 1) +
   geom_ribbon(data = summary_data, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "red") +
   labs(x = "Time", y = "Ensemble average")
-
-ggplot() +
-  geom_line(data = combined_data, aes(x = days, y = cumsum_cost_of_NPI), color = "grey", alpha = 0.3) +
-  geom_line(data = summary_data_cost, aes(x = days, y = mean), color = "red", size = 1) +
-  geom_ribbon(data = summary_data_cost, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "red") +
-  labs(x = "Time", y = "Ensemble average NPI cost")
 
 cls <- rep("grey", sim_ens)
 cls[1] <- "red"
@@ -234,42 +266,3 @@ ggplot(combined_data %>% filter(sim_id == 1)) +
   labs(x = "Days", y = "Reported cases and true infections", color = "Policy") +
   scale_color_manual(values = c("No intervention" = "chartreuse3", "Social distancing" = "darkorchid1", "Lockdown" = "red")) +
   guides(color = guide_legend(title = "Policy"))
-
-# Write the first dataframe of episim_data_ens to a CSV file
-#write.csv(combined_data, "data_3npis_with_s.csv", row.names = FALSE)
-
-####
-
-data3 <- read.csv("data_3npis_with_s.csv")
-data6 <- read.csv("data_6npis_with_s.csv")
-data10 <- read.csv("data_10npis_with_s.csv")
-
-
-summary_data_cost3 <- data3 %>%
-  group_by(days) %>%
-  summarise(q5 = quantile(cumsum_cost_of_NPI, probs = 0.05),
-            mean = mean(cumsum_cost_of_NPI),
-            q95 = quantile(cumsum_cost_of_NPI, probs = 0.95))
-
-summary_data_cost6 <- data6 %>%
-  group_by(days) %>%
-  summarise(q5 = quantile(cumsum_cost_of_NPI, probs = 0.05),
-            mean = mean(cumsum_cost_of_NPI),
-            q95 = quantile(cumsum_cost_of_NPI, probs = 0.95))
-
-summary_data_cost10 <- data10 %>%
-  group_by(days) %>%
-  summarise(q5 = quantile(cumsum_cost_of_NPI, probs = 0.05),
-            mean = mean(cumsum_cost_of_NPI),
-            q95 = quantile(cumsum_cost_of_NPI, probs = 0.95))
-
-ggplot() +
-  geom_line(data = summary_data_cost3, aes(x = days, y = mean), color = "red", size = 1) +
-  geom_ribbon(data = summary_data_cost3, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "red") +
-  geom_line(data = summary_data_cost6, aes(x = days, y = mean), color = "blue", size = 1) +
-  geom_ribbon(data = summary_data_cost6, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "blue") +
-  geom_line(data = summary_data_cost10, aes(x = days, y = mean), color = "magenta", size = 1) +
-  geom_ribbon(data = summary_data_cost10, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "magenta") +
-  labs(x = "Time", y = "Ensemble average NPI cost")
-
-

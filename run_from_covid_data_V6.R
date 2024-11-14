@@ -1,3 +1,27 @@
+library(haven)
+library(ggplot2)
+
+# from here: https://www.thelancet.com/journals/lanpub/article/PIIS2468-2667(22)00060-3/fulltext
+
+data <- read_dta('covid_data/Data_from_OxCGRT.dta')
+
+# Filter rows where country is "United Kingdom"
+uk_data <- subset(data, country == "United Kingdom")
+
+pop_data <- read_dta('covid_data/World_population_world_bank.dta')
+
+uk_pop <- pop_data[251, 2]
+
+# Display the filtered data
+print(uk_data)
+
+# Convert date column to Date type if necessary
+uk_data$date_mdy <- as.Date(uk_data$date_mdy, format="%m/%d/%Y")
+
+uk_data$daily_cases_100k <- round((uk_data$daily_cases_100k)*67215293/1e5, digits =  0)
+
+uk_data$daily_cases_100k[is.na(uk_data$daily_cases_100k)] <- 0
+
 ## Declaring epidemic & noise parameters
 
 library(VGAM)
@@ -9,16 +33,41 @@ library(pbapply)
 cores=detectCores()-1
 cl <- makeCluster(cores)
 
-Epi_pars = data.frame (
+Epi_pars <- data.frame (
   Pathogen = c("COVID-19", "Ebola"),
-  R0 = c(3.5, 2.5),
+  R0 = c(1.305201/0.5, 2.5),
   gen_time = c(6.5, 15.0),
   gen_time_var = c(2.1, 2.1)
 )
+#1.305201
+#real_days <- 258L #336
+real_days <- 370L
+
+delta_multiplier <- 1.75
+
+#vaccination
+vac <- function(x, maxv, scale, start) {
+  return(pmax(0, tanh((x-start) / scale) * maxv))
+}
+
+vac(700, 0.7, 100, 370)
+
+#delta variant prevalence relative to alpha
+
+delta <- function(x, scale, start) {
+  return(tanh((x-start) / scale) * 0.5 + 0.5)
+}
+
+delta(370, 150, 650)
+
+v_max_rate <- 0.8
+v_protection_alpha <- 0.83
+v_protection_delta <- (58+85)/200
+
 
 I0 <- 10L #initial no. of infections
-ndays <- 101L*7L#epidemic length
-N <- 3.5e6 #Total population (if we account for susceptibles)
+ndays <- real_days+61L*7L#epidemic length
+N <- 1e7 #Total population (if we account for susceptibles)
 
 Noise_pars <- data.frame (
   repd_mean = 10.5, #Reporting delay mean
@@ -29,10 +78,10 @@ Noise_pars <- data.frame (
 
 # Setting-up the control (using non-pharmaceutical interventions)
 Action_space <- data.frame (
-  NPI = c("No restrictions", "Social distancing", "Lockdown"),
-  R_coeff = c(1.0, 0.5, 0.2), #R0_act = R0 * ctrl_states
-  R_beta_a = c(0.0, 5.0, 5.0), #R0_act uncertainty
-  cost_of_NPI = c(0.0, 0.01, 0.15)
+  NPI = c("No restrictions", "SD1", "SD2", "SD3", "SD4", "Lockdown"),
+  R_coeff = c(1.0, 0.8, 0.65, 0.5, 0.35, 0.2), #R0_act = R0 * ctrl_states
+  R_beta_a = c(0.0, 5.0, 5.0, 5.0, 5.0, 5.0), #R0_act uncertainty
+  cost_of_NPI = c(0.0, 0.002, 0.005, 0.01, 0.08, 0.15)
 )
 
 #Sim and control options
@@ -55,18 +104,18 @@ gamma <- 0.95 #discounting factor
 
 #Simulation parameters
 n_ens <- 100L #MC assembly size for 4
-sim_ens <- 100L #assembly size for full simulation
+sim_ens <- 20L #assembly size for full simulation
 
 #Frequecy of policy review
-rf <- 7L #days 14
+rf <- 28L #days 14
 R_est_wind <- 5L #rf-2 #window for R estimation
 use_S <- 0L
 
 #Prediction window
-pred_days <- 12L #14 #21 #12
+pred_days <- 28L #14 #21 #12
 
 # Original episim_data
-column_names <- c("days", "sim_id", "I", "Lambda", "C", "Lambda_C", "S", "Re", "Rew", "Rest", "R0est", "policy", "R_coeff")
+column_names <- c("days", "sim_id", "I", "Lambda", "C", "Lambda_C", "S", "Re", "Rew", "Rest", "R0est", "policy", "R_coeff", "Real_C", "vaccination_rate", "delta_prevalence","immunity")
 
 # Create an empty data frame with specified column names
 empty_df <- data.frame(matrix(ncol = length(column_names), nrow = 0))
@@ -82,10 +131,45 @@ episim_data <- rbind(empty_df, zero_matrix)
 
 #initialisation
 
-episim_data['policy'] <- rep(1, ndays)
+episim_data['policy'] <- rep(3, ndays)
 episim_data['sim_id'] <- rep(1, ndays)
+episim_data[1:real_days,] <- c(1, 1, I0, I0, Noise_pars['ur_mean']*I0, Noise_pars['ur_mean']*I0, N-I0, Epi_pars[1,'R0']*0.5, Epi_pars[1,'R0']*0.5, Epi_pars[1,'R0']*0.5, Epi_pars[1,'R0'], 4, 0.5, 0, 0, 0, 0)
 episim_data['days'] <- 1:ndays
-episim_data[1,] <- c(1, 1, I0, I0, Noise_pars['ur_mean']*I0, Noise_pars['ur_mean']*I0, N-I0, Epi_pars[1,'R0'], Epi_pars[1,'R0'], 1, 1, 1)
+
+episim_data[1:real_days,"C"] <- uk_data$daily_cases_100k[1:real_days]
+episim_data[1:real_days,"I"] <- uk_data$daily_cases_100k[1:real_days]/0.3
+episim_data[1:nrow(episim_data),"Real_C"] <- uk_data$daily_cases_100k[1:nrow(episim_data)]
+
+# get infectiousness and estimated R-s
+
+gen_time <- 6.5
+gen_time_var <- 2.1
+
+R_est_wind <- 5  # Define your window size
+
+Ygen <- dgamma(1:nrow(uk_data), gen_time/gen_time_var, 1/gen_time_var)
+Ygen <- Ygen/sum(Ygen)
+
+# Estimate R
+for (ii in 1:real_days+1) {
+  if (ii-1 < R_est_wind) {
+    episim_data[ii, 'Rest'] <- mean(episim_data[1:(ii-1), 'C']) / mean(episim_data[1:(ii-1), 'Lambda_C'])
+    R_coeff_tmp <- sum(Ygen[1:(ii-1)] * episim_data[(ii-1):1, 'R_coeff']) / sum(Ygen[1:(ii-1)])
+  } else {
+    if ( mean(episim_data[(ii-R_est_wind):(ii-1), 'Lambda_C']) == 0){
+      episim_data[ii, 'Rest'] <- 0
+      R_coeff_tmp <- 1
+    } else {
+      episim_data[ii, 'Rest'] <- mean(episim_data[(ii-R_est_wind):(ii-1), 'C']) / mean(episim_data[(ii-R_est_wind):(ii-1), 'Lambda_C'])
+      R_coeff_tmp <- sum(Ygen[1:(ii-1)] * episim_data[(ii-1):1, 'R_coeff']) / sum(Ygen[1:(ii-1)])
+    }
+  }
+  episim_data[ii, 'R0est'] <- episim_data[ii, 'Rest'] / R_coeff_tmp
+  episim_data[ii, 'Lambda_C'] <- sum(episim_data[(ii-1):1,'C']*Ygen[1:(ii-1)])
+  episim_data[ii, 'Lambda'] <- sum(episim_data[(ii-1):1,'I']*Ygen[1:(ii-1)])
+}
+
+Epi_pars[1,"R0"] <- episim_data[real_days, 'R0est']
 
 episim_data_ens <- replicate(sim_ens, episim_data, simplify = FALSE)
 
@@ -117,26 +201,21 @@ clusterEvalQ(cl, {
   library(EpiControl)
 })
 
+#for (ii in 1:sim_ens) {
+#  episim_data_ens[[jj]] <- Epi_MPC_run(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, n_ens = n_ens, start_day = real_days, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, N = N)
+#}
+
+
+
+
 results <- pblapply(1:sim_ens, function(jj) {
-  episim_data_ens[[jj]] <- Epi_MPC_run(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, N = N)
+  episim_data_ens[[jj]] <- Epi_MPC_run_V(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, n_ens = n_ens, start_day = real_days, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 1, ur = 1, N = N)
 }, cl=cl)
 
 episim_data_ens <- results
 stopCluster(cl)
 
-# Loop through all elements of episim_data_ens and add the cost_of_NPI and its cumulative sum
 
-for (i in seq_along(episim_data_ens)) {
-  # Add the cost_of_NPI column by looking up Action_space
-  episim_data_ens[[i]]$cost_of_NPI <- sapply(episim_data_ens[[i]]$policy, function(ix) {
-    Action_space[ix, "cost_of_NPI"]
-  })
-
-  # Add the cumulative sum of the cost_of_NPI column
-  episim_data_ens[[i]]$cumsum_cost_of_NPI <- cumsum(episim_data_ens[[i]]$cost_of_NPI)
-}
-
-# Now all elements in episim_data_ens should have the new columns
 
 #for (jj in 1:sim_ens) {
 #  episim_data_ens[[jj]] <- Epi_MPC_run(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, N = N)
@@ -167,12 +246,6 @@ summary_data <- combined_data %>%
             mean = mean(C),
             q95 = quantile(C, probs = 0.95))
 
-summary_data_cost <- combined_data %>%
-  group_by(days) %>%
-  summarise(q5 = quantile(cumsum_cost_of_NPI, probs = 0.05),
-            mean = mean(cumsum_cost_of_NPI),
-            q95 = quantile(cumsum_cost_of_NPI, probs = 0.95))
-
 summary_data
 
 ggplot() +
@@ -180,12 +253,6 @@ ggplot() +
   geom_line(data = summary_data, aes(x = days, y = mean), color = "red", size = 1) +
   geom_ribbon(data = summary_data, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "red") +
   labs(x = "Time", y = "Ensemble average")
-
-ggplot() +
-  geom_line(data = combined_data, aes(x = days, y = cumsum_cost_of_NPI), color = "grey", alpha = 0.3) +
-  geom_line(data = summary_data_cost, aes(x = days, y = mean), color = "red", size = 1) +
-  geom_ribbon(data = summary_data_cost, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "red") +
-  labs(x = "Time", y = "Ensemble average NPI cost")
 
 cls <- rep("grey", sim_ens)
 cls[1] <- "red"
@@ -223,53 +290,38 @@ combined_data <- combined_data %>%
 combined_data <- combined_data %>%
   arrange(sim_id, days, policy)
 
-policy_labels <- c("1" = "No intervention", "2" = "Social distancing", "3" = "Lockdown")
+policy_labels <- c("1" = "No restrictions", "2" = "SD1", "3" = "SD2", "4" = "SD3", "5" = "SD4", "6" = "Lockdown")
 
 # Plot with continuous lines and custom labels
 ggplot(combined_data %>% filter(sim_id == 1)) +
   geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = C, color = as.factor(sim_id)), alpha = 0.1) +
   geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
   geom_line(aes(x = days, y = I, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, size=0.25) +
+  geom_line(aes(x = days, y = Real_C, color = "blue", group = 1), alpha = 1.0, size=0.25) +
   geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", size=0.25) +
+  geom_vline(xintercept = real_days, linetype = "dashed", color = "black", size=0.25) +
   labs(x = "Days", y = "Reported cases and true infections", color = "Policy") +
-  scale_color_manual(values = c("No intervention" = "chartreuse3", "Social distancing" = "darkorchid1", "Lockdown" = "red")) +
+  scale_color_manual(values = c("SD1" = "aquamarine", "SD2" = "darkgoldenrod1", "SD3" = "deeppink", "SD4" = "darkorchid1", "No restrictions" = "chartreuse3", "Lockdown" = "red")) +
   guides(color = guide_legend(title = "Policy"))
 
-# Write the first dataframe of episim_data_ens to a CSV file
-#write.csv(combined_data, "data_3npis_with_s.csv", row.names = FALSE)
+ggplot(combined_data %>% filter(sim_id == 1)) +
+  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = C, color = as.factor(sim_id)), alpha = 0.1) +
+  geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
+  geom_line(aes(x = days, y = Real_C, color = "blue", group = 1), alpha = 1.0, size=0.25) +
+  geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", size=0.25) +
+  geom_vline(xintercept = real_days, linetype = "dashed", color = "black", size=0.25) +
+  labs(x = "Days", y = "Reported cases", color = "Policy") +
+  scale_color_manual(values = c("SD1" = "aquamarine", "SD2" = "darkgoldenrod1", "SD3" = "deeppink", "SD4" = "darkorchid1", "No restrictions" = "chartreuse3", "Lockdown" = "red")) +
+  guides(color = guide_legend(title = "Policy"))
 
-####
-
-data3 <- read.csv("data_3npis_with_s.csv")
-data6 <- read.csv("data_6npis_with_s.csv")
-data10 <- read.csv("data_10npis_with_s.csv")
-
-
-summary_data_cost3 <- data3 %>%
-  group_by(days) %>%
-  summarise(q5 = quantile(cumsum_cost_of_NPI, probs = 0.05),
-            mean = mean(cumsum_cost_of_NPI),
-            q95 = quantile(cumsum_cost_of_NPI, probs = 0.95))
-
-summary_data_cost6 <- data6 %>%
-  group_by(days) %>%
-  summarise(q5 = quantile(cumsum_cost_of_NPI, probs = 0.05),
-            mean = mean(cumsum_cost_of_NPI),
-            q95 = quantile(cumsum_cost_of_NPI, probs = 0.95))
-
-summary_data_cost10 <- data10 %>%
-  group_by(days) %>%
-  summarise(q5 = quantile(cumsum_cost_of_NPI, probs = 0.05),
-            mean = mean(cumsum_cost_of_NPI),
-            q95 = quantile(cumsum_cost_of_NPI, probs = 0.95))
 
 ggplot() +
-  geom_line(data = summary_data_cost3, aes(x = days, y = mean), color = "red", size = 1) +
-  geom_ribbon(data = summary_data_cost3, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "red") +
-  geom_line(data = summary_data_cost6, aes(x = days, y = mean), color = "blue", size = 1) +
-  geom_ribbon(data = summary_data_cost6, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "blue") +
-  geom_line(data = summary_data_cost10, aes(x = days, y = mean), color = "magenta", size = 1) +
-  geom_ribbon(data = summary_data_cost10, aes(x = days, ymin = q5, ymax = q95), alpha = 0.2, fill = "magenta") +
-  labs(x = "Time", y = "Ensemble average NPI cost")
+  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = vaccination_rate), color = "red", alpha = 1.0) +
+  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = delta_prevalence), color = "blue", alpha = 1.0) +
+  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = immunity), color = "purple", alpha = 1.0) +
+  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = Re), color = "orange", alpha = 1.0) +
+  labs(x = "Days", y = "Vaccination rate") +
+  scale_color_manual(values = cls) +
+  guides(color = FALSE)
 
-
+#write.csv(combined_data, "covid_V_with_delta6.csv", row.names = FALSE)

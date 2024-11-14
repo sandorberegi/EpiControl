@@ -3,6 +3,7 @@ library(VGAM)
 #library(foreach)
 library(parallel)
 library(pbapply)
+library(zoo)
 
 cores=detectCores()-1
 cl <- makeCluster(cores)
@@ -28,12 +29,12 @@ logistic_function <- function(t, R0, R1, r, t0) {
 }
 
 I0 <- 10L #initial no. of infections
-ndays <- 81L*7L#epidemic length
+ndays <- 61L*7L#epidemic length
 N <- 1e6 #Total population (if we account for susceptibles)
 
 Noise_pars <- data.frame (
-  repd_mean = 10.5, #Reporting delay mean
-  del_disp = 5.0, #Reporting delay variance
+  repd_mean = 14.5, #Reporting delay mean 10.5
+  del_disp = 1.1, #Reporting delay variance 5.0
   ur_mean = 0.3, #Under reporting, mean/variance
   ur_beta_a = 50.0
 )
@@ -55,17 +56,17 @@ distr_sel <- 1L #0: Deterministic, 1: Poisson, 2: Binomial
 delay_on <- 1L #1: sim with time-delay, 0: no-delay (if 0, set delay_calc_v = 0)
 under_rep_on <- 1L #0: no under reporting, 1: calculate with under-reporting
 
-C_target <- 5000 #target cases
+C_target <- 100 #target cases
 C_target_pen <- C_target*1.5 #overshoot penalty threshold
 R_target <- 1.0
-D_target <- 0
-D_target_pen <- 500 #max death
-alpha <- 0*1.3/C_target #~proportional gain (regulates error in cases) covid
-#alpha = 3.25/C_target #~proportional gain (regulates error in cases) ebola
+D_target <- 50
+D_target_pen <- 1.5*50 #max death
+#alpha <- 1.3/C_target #~proportional gain (regulates error in cases) covid
+alpha = 3.25/C_target #~proportional gain (regulates error in cases) ebola
 #beta <- 0.0 #~derivative gain (regulates error in R)
-alpha_d <- 1.3/C_target*100
-ovp <- 0*5.0 #overshoot penalty
-dovp <- 10.0 #death overshoot penalty
+alpha_d <- 0*3.25/C_target*2
+ovp <- 5.0 #overshoot penalty
+dovp <- 0*5.0 #death overshoot penalty
 gamma <- 0.95 #discounting factor
 
 #Simulation parameters
@@ -133,7 +134,7 @@ clusterEvalQ(cl, {
 })
 
 results <- pblapply(1:sim_ens, function(jj) {
-  episim_data_ens[[jj]] <- Epi_MPC_run_wd(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 2, susceptibles = 1, delay = 0, ur = 0, r_dir = 0, N = N)
+  episim_data_ens[[jj]] <- Epi_MPC_run_wd(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 2, susceptibles = 0, delay = 0, ur = 0, r_dir = 0, N = N)
 }, cl=cl)
 
 episim_data_ens <- results
@@ -150,6 +151,14 @@ for (jj in 1:sim_ens) {
 #  setTxtProgressBar(pb,jj)
 #}
 #close(pb)
+
+for (jj in 1:sim_ens) {
+  episim_data_ens[[jj]] <- head(episim_data_ens[[jj]], -pred_days)
+  episim_data_ens[[jj]]["D_roll"] <- rollsum(episim_data_ens[[jj]]["Deaths"], 7, fill = NA)
+  episim_data_ens[[jj]]["I_roll"] <- rollsum(episim_data_ens[[jj]]["I"], 7, fill = NA)
+  episim_data_ens[[jj]]["D_cum"] <- cumsum(episim_data_ens[[jj]]["Deaths"])
+  episim_data_ens[[jj]]["I_cum"] <- cumsum(episim_data_ens[[jj]]["I"])
+}
 
 combined_data <- do.call(rbind, episim_data_ens)
 
@@ -205,10 +214,10 @@ ggplot() +
   geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = I), color = "darkred", alpha = 1.0) +
   geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = C), color = "red", alpha = 1.0) +
   geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = 200*Deaths), color = "blue", alpha = 1.0) +
-  geom_hline(yintercept = C_target, linetype = "dashed", color = "purple", size=0.25) +
-  geom_hline(yintercept = 200*D_target_pen, linetype = "dashed", color = "blue", size=0.25) +
+  geom_hline(yintercept = 200*D_target, linetype = "dashed", color = "blue", size=0.25) +
+  geom_hline(yintercept = C_target, linetype = "dashed", color = "red", size=0.25) +
   scale_y_continuous(
-    name = "I and C",
+    name = "Reported new infections",
     sec.axis = sec_axis(~./200, name = "Deaths")
   ) +
   labs(x = "Days", y = "I") +
@@ -238,6 +247,13 @@ ggplot() +
   scale_color_manual(values = cls) +
   guides(color = FALSE)
 
+ggplot() +
+  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = Deaths, color = as.factor(sim_id)), alpha = 0.3) +
+  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = Deaths), color = "red", alpha = 1.0) +
+  labs(x = "Days", y = "R0 estimate") +
+  scale_color_manual(values = cls) +
+  guides(color = FALSE)
+
 # Create a new grouping variable for discontinuities
 combined_data <- combined_data %>%
   group_by(sim_id, policy) %>%
@@ -256,6 +272,234 @@ ggplot(combined_data %>% filter(sim_id == 1)) +
   geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
   geom_line(aes(x = days, y = I, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, size=0.25) +
   geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", size=0.25) +
-  labs(x = "Days", y = "Reported cases and true infections", color = "Policy") +
+  labs(x = "Days", y = "Reported cases", color = "Policy") +
   scale_color_manual(values = c("No intervention" = "chartreuse3", "Social distancing" = "darkorchid1", "Lockdown" = "red")) +
   guides(color = guide_legend(title = "Policy"))
+
+
+
+#inc_data <- read.csv("data_ctlr_inc.csv")
+inc_data <- read.csv("data_ctrl_inc_ebola28.csv")
+filtered_inc_data <- inc_data %>% filter(sim_id < 101)
+filtered_inc_data <- filtered_inc_data %>% filter(days < 375)
+filtered_inc_data["sim_id"] <- filtered_inc_data["sim_id"]+100
+
+#case_data <- read.csv("data_ctlr_cases.csv")
+case_data <- read.csv("data_ctrl_cases_ebola2.csv")
+filtered_case_data <- case_data %>% filter(sim_id < 101)
+filtered_case_data <- filtered_case_data %>% filter(days < 375)
+filtered_case_data["sim_id"] <- filtered_case_data["sim_id"]+200
+
+#death_data <- read.csv("data_ctlr_deaths.csv")
+death_data <- read.csv("data_ctrl_death_ebola2.csv")
+filtered_death_data <- death_data %>% filter(sim_id < 101)
+
+#est_death_data <- read.csv("data_ctlr_est_D.csv")
+est_death_data <- read.csv("data_ctrl_est_D_ebola2.csv")
+filtered_est_death_data <- est_death_data %>% filter(sim_id < 375)
+filtered_est_death_data["sim_id"] <- filtered_est_death_data["sim_id"]+300
+
+cls2 <- rep("red", 4*sim_ens)
+cls2[101:(2*sim_ens)] <- "blue"
+cls2[201:(2*sim_ens)] <- "darkgreen"
+cls2[301:(2*sim_ens)] <- "magenta"
+
+dfi <- filtered_inc_data %>%
+  group_by(days) %>%
+  summarise(avg_deaths = mean(D_cum))
+
+dfd <- filtered_death_data %>%
+  group_by(days) %>%
+  summarise(avg_deaths = mean(D_cum))
+
+dfc <- filtered_case_data %>%
+  group_by(days) %>%
+  summarise(avg_deaths = mean(D_cum))
+
+dfed <- filtered_est_death_data %>%
+  group_by(days) %>%
+  summarise(avg_deaths = mean(D_cum))
+
+ggplot() +
+  geom_line(data = subset(filtered_inc_data, sim_id == 101), aes(x = days, y = D_cum), color = "darkred", alpha = 0.35) +
+  geom_line(data = subset(filtered_inc_data, sim_id != 101), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.35) +
+  geom_line(data = subset(filtered_death_data, sim_id == 1), aes(x = days, y = D_cum), color = "blue", alpha = 0.35) +
+  geom_line(data = subset(filtered_death_data, sim_id != 1), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.35) +
+  geom_line(data = subset(filtered_case_data, sim_id == 201), aes(x = days, y = D_cum), color = "darkgreen", alpha = 0.35) +
+  geom_line(data = subset(filtered_case_data, sim_id != 201), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.35) +
+  geom_line(data = subset(filtered_est_death_data, sim_id == 301), aes(x = days, y = D_cum), color = "magenta", alpha = 0.35) +
+  geom_line(data = subset(filtered_est_death_data, sim_id != 301), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.35) +
+  geom_line(data = dfi, aes(x = days, y = avg_deaths), color = "darkred", size = 0.8) +
+  geom_line(data = dfd, aes(x = days, y = avg_deaths), color = "blue", size = 0.8) +
+  geom_line(data = dfc, aes(x = days, y = avg_deaths), color = "darkgreen", size = 0.8) +
+  geom_line(data = dfed, aes(x = days, y = avg_deaths), color = "magenta", size = 0.8) +
+  geom_hline(yintercept = D_target, linetype = "dashed", color = "black", size=0.25) +
+  labs(x = "Days", y = "Deaths (cummulative)") +
+  scale_color_manual(values = cls2) +
+  guides(color = FALSE)
+
+
+####
+
+# Function to calculate the summary statistics for each day
+calculate_summary <- function(data) {
+  data %>%
+    group_by(days) %>%
+    summarise(
+      median_D_cum = median(D_cum),
+      lower_bound = quantile(D_cum, 0.25),  # Lower quartile (25th percentile)
+      upper_bound = quantile(D_cum, 0.75)   # Upper quartile (75th percentile)
+    )
+}
+
+# Summarizing each dataset for medians and quartiles
+summary_inc_data <- calculate_summary(filtered_inc_data)
+summary_death_data <- calculate_summary(filtered_death_data)
+summary_case_data <- calculate_summary(filtered_case_data)
+summary_est_death_data <- calculate_summary(filtered_est_death_data)
+
+# Plot the summarized data with median lines and ribbons
+ggplot() +
+  # Inc Data with ribbon
+  geom_ribbon(data = summary_inc_data, aes(x = days, ymin = lower_bound, ymax = upper_bound), fill = "darkred", alpha = 0.2) +
+  geom_line(data = summary_inc_data, aes(x = days, y = median_D_cum), color = "darkred", size = 0.8) +
+
+  # Death Data with ribbon
+  geom_ribbon(data = summary_death_data, aes(x = days, ymin = lower_bound, ymax = upper_bound), fill = "blue", alpha = 0.2) +
+  geom_line(data = summary_death_data, aes(x = days, y = median_D_cum), color = "blue", size = 0.8) +
+
+  # Case Data with ribbon
+  geom_ribbon(data = summary_case_data, aes(x = days, ymin = lower_bound, ymax = upper_bound), fill = "darkgreen", alpha = 0.2) +
+  geom_line(data = summary_case_data, aes(x = days, y = median_D_cum), color = "darkgreen", size = 0.8) +
+
+  # Estimated Death Data with ribbon
+  geom_ribbon(data = summary_est_death_data, aes(x = days, ymin = lower_bound, ymax = upper_bound), fill = "magenta", alpha = 0.2) +
+  geom_line(data = summary_est_death_data, aes(x = days, y = median_D_cum), color = "magenta", size = 0.8) +
+
+  # Target Line
+  geom_hline(yintercept = D_target, linetype = "dashed", color = "black", size = 0.25) +
+
+  # Labels and themes
+  labs(x = "Days", y = "Deaths (cumulative)", title = "") +
+  theme_minimal()
+
+
+
+
+
+
+####
+
+
+
+
+
+data_230_inc <- filtered_inc_data %>% filter(days == 370) %>% mutate(dataset = "Inc Ctrl")
+data_230_death <- filtered_death_data %>% filter(days == 370) %>% mutate(dataset = "Death Ctrl (seeing I+D)")
+data_230_case <- filtered_case_data %>% filter(days == 370) %>% mutate(dataset = "Case Ctrl")
+data_230_est_death <- filtered_est_death_data %>% filter(days == 370) %>% mutate(dataset = "Death Ctrl (seeing D only)")
+
+# Combine the filtered data into one dataframe
+combined_data_230 <- bind_rows(data_230_inc, data_230_death, data_230_case, data_230_est_death)
+
+combined_data_230$dataset <- factor(combined_data_230$dataset, levels = c("Inc Ctrl", "Death Ctrl (seeing I+D)", "Case Ctrl", "Death Ctrl (seeing D only)"))
+
+# Create the boxplot with custom colors
+ggplot(combined_data_230, aes(x = dataset, y = D_cum, fill = dataset)) +
+
+  geom_boxplot() +
+  scale_fill_manual(values = c("Inc Ctrl" = "blue", "Death Ctrl (seeing I+D)" = "red", "Case Ctrl" = "green", "Death Ctrl (seeing D only)" = "purple")) +
+  labs(title = "Cumulative deaths on Day 370", x = "Dataset", y = "Deaths") +
+  theme_minimal()
+
+
+
+
+ggplot(dfp, aes(x = days, y = avg_deaths)) +
+  geom_line(color = "blue") +
+  labs(title = "Average Deaths Per Day Across All Simulations",
+       x = "Days",
+       y = "Average Deaths") +
+  theme_minimal()
+
+
+ggplot() +
+  geom_line(data = subset(filtered_inc_data, sim_id == 101), aes(x = days, y = D_cum), color = "darkred", alpha = 1.0) +
+  geom_line(data = subset(filtered_inc_data, sim_id != 101), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.2) +
+  geom_line(data = subset(filtered_death_data, sim_id == 1), aes(x = days, y = D_cum), color = "blue", alpha = 1.0) +
+  geom_line(data = subset(filtered_death_data, sim_id != 1), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.2) +
+  geom_line(data = subset(filtered_case_data, sim_id == 201), aes(x = days, y = D_cum), color = "darkgreen", alpha = 1.0) +
+  geom_line(data = subset(filtered_case_data, sim_id != 201), aes(x = days, y = D_cum, color = as.factor(sim_id)), alpha = 0.2) +
+  geom_hline(yintercept = D_target, linetype = "dashed", color = "black", size=0.25) +
+  labs(x = "Days", y = "Deaths (cummulative)") +
+  scale_color_manual(values = cls2) +
+  guides(color = FALSE)
+
+
+####
+
+ggplot() +
+  geom_line(data = subset(filtered_inc_data, sim_id == 101), aes(x = days, y = I), color = "darkred", alpha = 1.0) +
+  geom_line(data = subset(filtered_inc_data, sim_id == 101), aes(x = days, y = C), color = "red", alpha = 1.0) +
+  geom_line(data = subset(filtered_inc_data, sim_id == 101), aes(x = days, y = 200*Deaths), color = "blue", alpha = 1.0) +
+  geom_hline(yintercept = 200*D_target, linetype = "dashed", color = "blue", size=0.25) +
+  geom_hline(yintercept = C_target, linetype = "dashed", color = "red", size=0.25) +
+  scale_y_continuous(
+    name = "Reported new infections",
+    sec.axis = sec_axis(~./200, name = "Deaths")
+  ) +
+  labs(x = "Days", y = "I") +
+  scale_color_manual(values = cls) +
+  guides(color = FALSE)
+
+
+#####
+
+ggplot() +
+  geom_line(data = subset(filtered_death_data, sim_id == 1), aes(x = days, y = I), color = "darkred", alpha = 1.0) +
+  geom_line(data = subset(filtered_death_data, sim_id == 1), aes(x = days, y = C), color = "red", alpha = 1.0) +
+  geom_line(data = subset(filtered_death_data, sim_id == 1), aes(x = days, y = 200*Deaths), color = "blue", alpha = 1.0) +
+  geom_hline(yintercept = 200*D_target, linetype = "dashed", color = "blue", size=0.25) +
+  geom_hline(yintercept = C_target, linetype = "dashed", color = "red", size=0.25) +
+  scale_y_continuous(
+    name = "Reported new infections",
+    sec.axis = sec_axis(~./200, name = "Deaths")
+  ) +
+  labs(x = "Days", y = "I") +
+  scale_color_manual(values = cls) +
+  guides(color = FALSE)
+
+
+#####
+
+ggplot() +
+  geom_line(data = subset(filtered_case_data, sim_id == 201), aes(x = days, y = I), color = "darkred", alpha = 1.0) +
+  geom_line(data = subset(filtered_case_data, sim_id == 201), aes(x = days, y = C), color = "red", alpha = 1.0) +
+  geom_line(data = subset(filtered_case_data, sim_id == 201), aes(x = days, y = 200*Deaths), color = "blue", alpha = 1.0) +
+  geom_hline(yintercept = 200*D_target, linetype = "dashed", color = "blue", size=0.25) +
+  geom_hline(yintercept = C_target, linetype = "dashed", color = "red", size=0.25) +
+  scale_y_continuous(
+    name = "Reported new infections",
+    sec.axis = sec_axis(~./200, name = "Deaths")
+  ) +
+  labs(x = "Days", y = "I") +
+  scale_color_manual(values = cls) +
+  guides(color = FALSE)
+
+
+####
+
+ggplot() +
+  geom_line(data = subset(filtered_est_death_data, sim_id == 301), aes(x = days, y = I), color = "darkred", alpha = 1.0) +
+  geom_line(data = subset(filtered_est_death_data, sim_id == 301), aes(x = days, y = C), color = "red", alpha = 1.0) +
+  geom_line(data = subset(filtered_est_death_data, sim_id == 301), aes(x = days, y = 200*Deaths), color = "blue", alpha = 1.0) +
+  geom_hline(yintercept = 200*D_target, linetype = "dashed", color = "blue", size=0.25) +
+  geom_hline(yintercept = C_target, linetype = "dashed", color = "red", size=0.25) +
+  scale_y_continuous(
+    name = "Reported new infections",
+    sec.axis = sec_axis(~./200, name = "Deaths")
+  ) +
+  labs(x = "Days", y = "I") +
+  scale_color_manual(values = cls) +
+  guides(color = FALSE)
+
