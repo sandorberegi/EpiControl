@@ -62,6 +62,7 @@ Epi_MPC_run_V_no_delta <- function(episimdata, epi_par, noise_par, actions, pred
     episimdata[ii, 'R_coeff'] <- Rcoeff
 
     vacc <- vac(ii, v_max_rate, 100, 370)
+    #vacc <- vac(ii, v_max_rate, 150, 100)
 
     delta_ratio <- 0
 

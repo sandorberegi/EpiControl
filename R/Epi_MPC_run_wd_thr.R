@@ -1,3 +1,79 @@
+#' Simulate Epidemic Dynamics with Threshold-based Policy Control
+#'
+#' This function simulates an epidemic using predefined parameters while dynamically
+#' applying threshold-based policy interventions, such as lockdowns, based on
+#' rolling averages of deaths.
+#'
+#' @param episimdata A data frame containing simulation data. It should include columns for
+#' \code{"I"} (infected individuals), \code{"C"} (cases), \code{"Deaths"}, \code{"S"} (susceptible individuals),
+#' \code{"R_coeff"}, and related epidemiological metrics.
+#' @param epi_par A data frame containing epidemiological parameters for the pathogen, including:
+#' \itemize{
+#'   \item \code{"R0"}: Basic reproduction number.
+#'   \item \code{"gen_time"}: Generation time of the disease.
+#'   \item \code{"gen_time_var"}: Dispersion of the generation time.
+#'   \item \code{"CFR"}: Case fatality rate.
+#'   \item \code{"mortality_mean"}: Mean mortality delay.
+#'   \item \code{"mortality_var"}: Dispersion of the mortality delay.
+#' }
+#' @param noise_par A data frame containing noise parameters, such as:
+#' \itemize{
+#'   \item \code{"repd_mean"}: Reporting delay mean.
+#'   \item \code{"del_disp"}: Dispersion for the reporting delay.
+#'   \item \code{"ur_mean"}: Mean under-reporting rate.
+#'   \item \code{"ur_beta_a"}: Alpha parameter of the Beta distribution for under-reporting.
+#' }
+#' @param actions A data frame containing control actions. It should include columns for:
+#' \itemize{
+#'   \item \code{"R_coeff"}: The effect of each policy on the reproduction number.
+#' }
+#' @param pred_days An integer specifying the number of days to predict ahead for policy evaluation.
+#' @param n_ens An integer specifying the number of ensemble runs for Monte Carlo simulations. Defaults to \code{100}.
+#' @param start_day An integer specifying the day to start the simulation. Defaults to \code{1}.
+#' @param ndays An integer specifying the total number of simulation days. Defaults to the number of rows in \code{episimdata}.
+#' @param R_est_wind An integer specifying the rolling window size for estimating the reproduction number. Defaults to \code{5}.
+#' @param pathogen An integer or string identifying the pathogen to extract parameters for. Defaults to \code{1}.
+#' @param susceptibles A binary value (\code{0} or \code{1}) indicating whether to update the number of susceptibles. Defaults to \code{1}.
+#' @param delay A binary value (\code{0} or \code{1}) indicating whether to simulate reporting delays. Defaults to \code{0}.
+#' @param ur A binary value (\code{0} or \code{1}) indicating whether to simulate under-reporting. Defaults to \code{0}.
+#' @param r_dir An integer indicating reproduction number adjustments:
+#' \itemize{
+#' \item \code{1} for direct \code{Re}.
+#' \item \code{2} for logistic adjustments.
+#' \item \code{0} for using the generation time distribution.
+#' @param N A numeric value representing the total population size. Defaults to \code{1e6}.
+#'
+#' @param LD_on Threshold for starting lockdown
+#' @param LD_off Threshold for ending lockdown
+#'
+#' @return A data frame containing the updated simulation data with columns for dynamically computed reproduction numbers,
+#' rolling averages of deaths, policies, and other epidemic metrics.
+#'
+#' @details
+#' The function employs a threshold-based approach to policy control, where interventions such as lockdowns are
+#' triggered based on rolling averages of deaths (\code{Deaths_roll_avg}). Policies are evaluated periodically,
+#' and transitions occur when the rolling average exceeds or drops below predefined thresholds.
+#'
+#' @examples
+#' # Example data and parameters
+#' episimdata <- data.frame(I = c(10, 20), C = c(10, 15), Deaths = c(1, 2), S = c(1000, 990), R_coeff = c(1.0, 0.9))
+#' epi_par <- data.frame(
+#'   R0 = 2.5, gen_time = 5, gen_time_var = 1, CFR = 0.02,
+#'   mortality_mean = 14, mortality_var = 2
+#' )
+#' noise_par <- data.frame(
+#'   repd_mean = 2, del_disp = 1.5, ur_mean = 0.8, ur_beta_a = 2
+#' )
+#' actions <- data.frame(R_coeff = c(1.0, 0.3))
+#' results <- Epi_MPC_run_wd_thr(
+#'   episimdata = episimdata, epi_par = epi_par, noise_par = noise_par,
+#'   actions = actions, pred_days = 10, n_ens = 50, start_day = 1,
+#'   ndays = 20, R_est_wind = 5, pathogen = 1, susceptibles = 1,
+#'   delay = 0, ur = 0, r_dir = 0, N = 1e6
+#' )
+#'
+#' @export
+
 # Simulate the epidemic without control ('open-loop') pre-defined parameters.
 
 Epi_MPC_run_wd_thr <- function(episimdata, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, r_dir = 0, N = 1e6) {
@@ -56,16 +132,24 @@ Epi_MPC_run_wd_thr <- function(episimdata, epi_par, noise_par, actions, pred_day
 
     episimdata[ii, 'R0est'] <- episimdata[ii, 'Rest'] / R_coeff_tmp
 
-    if (ii %% rf == 0L) {
+    avg_days <- 5L
+
+    if (ii > avg_days) {
+      Deaths_roll_avg <- mean(episimdata[(ii-avg_days):(ii-1), 'Deaths'])
+    } else {
+      Deaths_roll_avg <- episimdata[ii-1, 'Deaths']
+    }
+
+    if ((ii %% rf == 0L)) {
       if (episimdata[ii-1, 'policy'] == 1L) {
-        if (episimdata[ii-1, 'Deaths'] > LD_on){
+        if ((Deaths_roll_avg > LD_on)){
           episimdata[ii, 'policy'] <- 2L
           last_changed <- ii
         } else {
           episimdata[ii, 'policy'] <- episimdata[ii-1, 'policy']
         }
       } else if (episimdata[ii-1, 'policy'] == 2L) {
-        if (episimdata[ii-1, 'Deaths'] < LD_off){
+        if ((Deaths_roll_avg < LD_off)){
           episimdata[ii, 'policy'] <- 1L
           last_changed <- ii
         } else {

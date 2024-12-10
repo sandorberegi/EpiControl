@@ -1,0 +1,108 @@
+---
+title: "Simulating Epidemic Dynamics with Policy Interventions"
+author: "Sandor Beregi"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE, results='asis'}
+cat("## Overview\n\n",
+    "This vignette demonstrates model predictive optimal control of ICU cases for COVID-19 \n\n")
+```
+
+### Load Libraries and Setup
+
+Load the required libraries and initialize the simulation environment.
+
+```{r load-libraries}
+library(VGAM)
+library(parallel)
+library(pbapply)
+library(zoo)  # For rolling sum operations
+library(dplyr)
+library(ggplot2)
+```
+
+Initialize the cluster for parallel computing:
+
+```{r parallel-setup}
+cores <- detectCores() - 1
+cl <- makeCluster(cores)
+```
+
+### Epidemiological and Noise Parameters
+
+Define parameters for pathogens and noise:
+
+```{r define-parameters}
+Epi_pars <- data.frame(
+  Pathogen = c("COVID-19", "Ebola"),
+  R0 = c(2.2, 2.5),
+  gen_time = c(6.5, 15.0),
+  gen_time_var = c(2.1, 2.1),
+  CFR = c(0.0132, 0.5),
+  mortality_mean = c(10.0, 10.0),
+  mortality_var = c(1.1, 1.1)
+)
+
+Noise_pars <- data.frame(
+  repd_mean = 10.5,  # Reporting delay mean
+  del_disp = 5.0,    # Reporting delay variance
+  ur_mean = 0.3,     # Under-reporting mean
+  ur_beta_a = 50.0   # Beta distribution alpha for under-reporting
+)
+```
+
+### Action Space for Policy Interventions
+
+Define non-pharmaceutical interventions:
+
+```{r action-space}
+Action_space <- data.frame(
+  NPI = c("No restrictions", "Lockdown"),
+  R_coeff = c(1.0, 0.3),
+  R_beta_a = c(0.0, 5.0),
+  cost_of_NPI = c(0.0, 0.15)
+)
+```
+
+### Simulation Setup
+
+Set up key parameters and initialize simulation data:
+
+```{r simulation-setup}
+ndays <- 83 * 7
+N <- 1e7
+I0 <- 10
+
+column_names <- c("days", "sim_id", "I", "Lambda", "C", "Lambda_C", "S", "Deaths", "Re", "Rew", "Rest", "R0est", "policy", "R_coeff")
+episim_data <- data.frame(matrix(0, nrow = ndays, ncol = length(column_names)))
+colnames(episim_data) <- column_names
+
+episim_data$policy <- rep(1, ndays)
+episim_data$days <- 1:ndays
+episim_data[1, ] <- c(1, 1, I0, I0, Noise_pars$ur_mean * I0, Noise_pars$ur_mean * I0, N - I0, 0, Epi_pars[1, "R0"], Epi_pars[1, "R0"], 1, 1, 1)
+```
+
+### Running the Simulation
+
+Run simulations in parallel using the pblapply function:
+
+```{r run-simulation}
+episim_data_ens <- replicate(100, episim_data, simplify = FALSE)
+
+clusterExport(cl, c("episim_data_ens", "Epi_pars", "Noise_pars", "Action_space", "logistic_function", "Epi_MPC_run_wd"))
+
+results <- pblapply(1:100, function(idx) {
+  Epi_MPC_run_wd(episim_data_ens[[idx]], Epi_pars, Noise_pars, Action_space, pred_days = 28, n_ens = 100, start_day = 1, ndays = ndays, R_est_wind = 5, pathogen = 1, susceptibles = 0, delay = 1, ur = 1, r_dir = 1, N = N)
+}, cl = cl)
+
+stopCluster(cl)
+
+# Combine Simulation Results
+combined_data <- do.call(rbind, results)
+```

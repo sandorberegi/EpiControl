@@ -1,3 +1,71 @@
+#' Simulate Epidemic Dynamics with Model Predictive Control
+#'
+#' This function simulates an epidemic under model predictive control (MPC) using pre-defined parameters.
+#' It dynamically evaluates actions to maximize expected rewards and updates epidemic states accordingly.
+#'
+#' @param episimdata A data frame containing simulation data. It should include columns such as
+#' \code{"C"} (cases), \code{"I"} (infected individuals), \code{"Re"} (effective reproduction number),
+#' \code{"S"} (susceptible individuals), \code{"Deaths"}, and \code{"Lambda"}.
+#'@param epi_par A data frame containing epidemiological parameters for various pathogens. It should
+#' have the following columns: \code{"R0"} (basic reproduction number), \code{"gen_time"}
+#' (generation time), \code{"gen_time_var"} (variance of generation time), \code{"CFR"}
+#' (case fatality rate), \code{"mortality_mean"}, and \code{"mortality_var"}.
+#' @param noise_par A data frame containing noise parameters for under-reporting and reporting delays:
+#' \itemize{
+#'   \item \code{"repd_mean"}: Mean of the reporting delay.
+#'   \item \code{"del_disp"}: Dispersion parameter for the reporting delay distribution.
+#'   \item \code{"ur_mean"}: Mean for the under-reporting rate.
+#'   \item \code{"ur_beta_a"}: Alpha parameter of the Beta distribution for under-reporting.
+#'   \item \code{"ur_beta_b"}: Beta parameter of the Beta distribution for under-reporting, computed as
+#'   \code{(1 - ur_mean) / ur_mean * ur_beta_a}.
+#' }
+#' @param actions A data frame containing control actions. It should include columns like \code{"R_coeff"}.
+#' @param pred_days An integer specifying the number of days to predict ahead in reward calculation.
+#' @param n_ens An integer specifying the number of ensemble runs for expected reward calculation. Defaults to \code{100}.
+#' @param start_day An integer specifying the start day of the simulation. Defaults to \code{1}.
+#' @param ndays An integer specifying the total number of simulation days. Defaults to the number of rows in \code{episimdata}.
+#' @param R_est_wind An integer specifying the window size for reproduction number estimation. Defaults to \code{5}.
+#' @param pathogen An integer or string identifying the pathogen to extract corresponding parameters. Defaults to \code{1}.
+#' @param susceptibles A binary value (\code{0} or \code{1}) indicating whether to update the number of susceptibles. Defaults to \code{1}.
+#' @param delay A binary value (\code{0} or \code{1}) indicating whether to simulate reporting delays. Defaults to \code{0}.
+#' @param ur A binary value (\code{0} or \code{1}) indicating whether to simulate under-reporting. Defaults to \code{0}.
+#' @param r_dir An integer specifying the reproduction number adjustments:
+#' \itemize{
+#'   \item \code{1} for direct \code{Re}.
+#'   \item \code{2} for logistic adjustments.
+#'   \item \code{0} for using the generation time distribution.
+#' }
+#' @param N A numeric value representing the total population size. Defaults to \code{1e6}.
+#'
+#' @return A data frame containing the updated simulation data with dynamically computed reproduction numbers,
+#' policies, cases, and deaths.
+#'
+#' @details
+#' The function employs a model predictive control strategy where actions are evaluated periodically
+#' (based on a refresh interval, \code{rf}). Expected rewards are computed using the \code{\link{Epi_pred_wd}} function
+#' over a specified prediction horizon, and the optimal action is selected. The simulation incorporates
+#' effects of under-reporting, reporting delays, and susceptible depletion based on the provided parameters.
+#'
+#' @examples
+#' # Example epidemiological data
+#' episimdata <- data.frame(C = c(0, 10), I = c(5, 8), Re = c(1.5, NA), S = c(1000, 990), Deaths = c(0, 1))
+#' epi_par <- data.frame(
+#'   R0 = 2.5, gen_time = 5, gen_time_var = 1,
+#'   CFR = 0.02, mortality_mean = 14, mortality_var = 2
+#' )
+#' noise_par <- data.frame(
+#'   repd_mean = 2, del_disp = 1.5, ur_mean = 0.8, ur_beta_a = 2
+#' )
+#' actions <- data.frame(R_coeff = c(0.9, 1.1))
+#' updated_data <- Epi_MPC_run_wd(
+#'   episimdata = episimdata, epi_par = epi_par, noise_par = noise_par,
+#'   actions = actions, pred_days = 10, n_ens = 50, start_day = 1,
+#'   ndays = 20, R_est_wind = 5, pathogen = 1, susceptibles = 1,
+#'   delay = 0, ur = 0, r_dir = 1, N = 1e6
+#' )
+#'
+#' @export
+
 # Simulate the epidemic without control ('open-loop') pre-defined parameters.
 
 Epi_MPC_run_wd <- function(episimdata, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, r_dir = 1, N = 1e6) {
