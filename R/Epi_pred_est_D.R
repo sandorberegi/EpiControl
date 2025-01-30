@@ -54,7 +54,7 @@ Epi_pred_est_D <- function(episimdata, epi_par, noise_par, actions, pathogen, pr
     episimdata[ii,'Deaths'] <- rpois(1, pois_input)
 
     discounts[ii] <- discounts[ii-1] * gamma
-    rew[ii] <- reward_fun_wd(episimdata,alpha,alpha_d,ovp,dovp,C_target,C_target_pen,D_target,D_target_pen,R_target,actions,ii,jj)
+    rew[ii] <- reward_fun_wd(episimdata,alpha,alpha_d,ovp,dovp,C_target,C_target_pen,D_target,D_target_pen,actions,ii,jj)
 
   }
 
