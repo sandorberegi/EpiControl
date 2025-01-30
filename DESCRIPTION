@@ -1,0 +1,25 @@
+Package: EpiControl
+Type: Package
+Title: Simulation Framework for Epidemic Dynamics and Optimal Control Policies
+Version: 0.1.0
+Author: Sandor Beregi
+Maintainer: Sandor Beregi <s.beregi@imperial.ac.uk>
+Description: A framework for simulating epidemic dynamics and evaluating optimal control policies. 
+    The package supports modelling policy interventions such as lockdown vaccination, and variant-specific adjustments. It also includes tools for immunity modeling, and assessing 
+    the impact of various strategies on epidemic outcomes.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Depends: R (>= 4.0.0)
+Imports:
+    dplyr,
+    ggplot2,
+    VGAM,
+    stats,
+    utils
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+RoxygenNote: 7.2.3
