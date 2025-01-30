@@ -150,7 +150,7 @@ for (ii in 1:sim_ens) {
 }
 
 clusterExport(cl, ls())
-clusterExport(cl, c("episim_data_ens", "Epi_pars", "Noise_pars", "Action_space", "logistic_function", "Epi_MPC_run_wd", "ndays"))
+clusterExport(cl, c("episim_data_ens", "Epi_pars", "Noise_pars", "Action_space", "logistic_function", "Epi_MPC_run_wd_thr", "ndays"))
 
 results <- pblapply(1:sim_ens, function(jj) {
   episim_data_ens[[jj]] <- Epi_MPC_run_wd_thr(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, start_day = 1, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, r_dir = 2, N = N)
@@ -194,8 +194,8 @@ policy_labels <- c("1" = "No intervention", "2" = "Lockdown")
 
 
 # Plotting the data
-ggplot(filtered_thr_data %>% filter(sim_id == 1)) +
-  geom_line(data = subset(filtered_thr_data, sim_id != 1), aes(x = days, y = D_roll, color = as.factor(sim_id)), alpha = 0.1) +
+ggplot(combined_data %>% filter(sim_id == 1)) +
+  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = D_roll, color = as.factor(sim_id)), alpha = 0.1) +
   geom_line(aes(x = days, y = D_roll, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
   geom_line(aes(x = days, y = D_roll, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, size=0.25) +
   geom_hline(yintercept = 7*LD_on, linetype = "dashed", color = "blue", size=0.25) +
@@ -207,5 +207,5 @@ ggplot(filtered_thr_data %>% filter(sim_id == 1)) +
     name = "ICU cases (weekly, rolling)",
     sec.axis = sec_axis(~./100, name = "R")
   ) +
-  geom_line(data = subset(filtered_thr_data, sim_id == 1), aes(x = days, y = 100*Re), color = "darkred", size=0.25, alpha = 1.0)
+  geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = 100*Re), color = "darkred", size=0.25, alpha = 1.0)
 ```
