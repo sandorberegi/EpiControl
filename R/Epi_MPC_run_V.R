@@ -173,9 +173,9 @@ Epi_MPC_run_V <- function(episimdata, epi_par, noise_par, actions, pred_days, n_
 
     if (ur == 1) {
       if (delay == 1){
-        episimdata[ii,'C'] <- rbetabinom.ab(1, episimdata[ii,'C'], ur_beta_a, ur_beta_b)
+        episimdata[ii,'C'] <- VGAM::rbetabinom.ab(1, episimdata[ii,'C'], ur_beta_a, ur_beta_b)
       } else {
-        episimdata[ii,'C'] <- rbetabinom.ab(1, episimdata[ii,'I'], ur_beta_a, ur_beta_b)
+        episimdata[ii,'C'] <- VGAM::rbetabinom.ab(1, episimdata[ii,'I'], ur_beta_a, ur_beta_b)
       }
     }
 

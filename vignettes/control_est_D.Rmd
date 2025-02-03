@@ -149,11 +149,11 @@ results <- pblapply(1:sim_ens, function(jj) {
 episim_data_ens <- results
 stopCluster(cl)
 
-for (jj in 1:sim_ens) {
-  episim_data_ens[[jj]] <- Epi_MPC_run_est_D(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, r_dir = 0, N = N)
-  setTxtProgressBar(pb,jj)
-}
-close(pb)
+#for (jj in 1:sim_ens) {
+#  episim_data_ens[[jj]] <- Epi_MPC_run_est_D(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, r_dir = 0, N = N)
+#  setTxtProgressBar(pb,jj)
+#}
+#close(pb)
 
 for (jj in 1:sim_ens) {
   episim_data_ens[[jj]] <- head(episim_data_ens[[jj]], -pred_days)
@@ -182,10 +182,14 @@ combined_data <- combined_data %>%
 
 policy_labels <- c("1" = "No intervention", "2" = "Lockdown")
 
+cls <- rep("grey", sim_ens)
+cls[1] <- "red"
+
 ggplot() +
   geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = Deaths, color = as.factor(sim_id)), alpha = 0.3) +
   geom_line(data = subset(combined_data, sim_id == 1), aes(x = days, y = Deaths), color = "darkred", alpha = 1.0) +
   labs(x = "Days", y = "Deaths") +
   scale_color_manual(values = cls) +
+  geom_hline(yintercept = C_target, linetype = "dashed", color = "purple", size=0.25)+
   guides(color = FALSE)
 ```

@@ -55,7 +55,6 @@ Epi_pred_est_D <- function(episimdata, epi_par, noise_par, actions, pathogen, pr
 
     discounts[ii] <- discounts[ii-1] * gamma
     rew[ii] <- reward_fun_wd(episimdata,alpha,alpha_d,ovp,dovp,C_target,C_target_pen,D_target,D_target_pen,actions,ii,jj)
-
   }
 
   Exp_rew <- sum(rew * discounts)
