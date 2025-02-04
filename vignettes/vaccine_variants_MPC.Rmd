@@ -78,19 +78,19 @@ Epi_pars <- data.frame(
 delta_multiplier <- 1.75
 
 #vaccination
-vac <- function(x, maxv, scale, start) {
-  return(pmax(0, tanh((x-start) / scale) * maxv))
-}
+#vac <- function(x, maxv, scale, start) {
+#  return(pmax(0, tanh((x-start) / scale) * maxv))
+#}
 
-vac(700, 0.7, 100, 370)
+#vac(700, 0.7, 100, 370)
 
 #delta variant prevalence relative to alpha
 
-delta <- function(x, scale, start) {
-  return(tanh((x-start) / scale) * 0.5 + 0.5)
-}
+#delta <- function(x, scale, start) {
+#  return(tanh((x-start) / scale) * 0.5 + 0.5)
+#}
 
-delta(370, 150, 650)
+#delta(370, 150, 650)
 
 v_max_rate <- 0.8
 v_protection_alpha <- 0.83
@@ -127,6 +127,10 @@ Set up key parameters and initialize simulation data:
 ndays <- real_days+61L*7L#epidemic length #simulation length
 N <- 1e7 # population size
 I0 <- 10 # initial infections
+
+#Simulation parameters
+n_ens <- 20L #MC assembly size for 4
+sim_ens <- 100L #assembly size for full simulation
 
 # Original episim_data
 column_names <- c("days", "sim_id", "I", "Lambda", "C", "Lambda_C", "S", "Re", "Rew", "Rest", "R0est", "policy", "R_coeff", "Real_C", "vaccination_rate", "delta_prevalence","immunity")
@@ -222,10 +226,6 @@ alpha_d <- 0*1.3/D_target
 ovp <- 5.0 #overshoot penalty
 dovp <- 0*10.0 #death overshoot penalty
 gamma <- 0.95 #discounting factor
-
-#Simulation parameters
-n_ens <- 20L #MC assembly size for 4
-sim_ens <- 100L #assembly size for full simulation
 
 #Frequecy of policy review
 rf <- 7L #days 14
