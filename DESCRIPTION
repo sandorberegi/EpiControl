@@ -16,7 +16,8 @@ Imports:
     ggplot2,
     VGAM,
     stats,
-    utils
+    utils,
+    pbapply
 Suggests:
     testthat (>= 3.0.0),
     knitr,
