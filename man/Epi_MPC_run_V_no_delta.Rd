@@ -2,7 +2,7 @@
 % Please edit documentation in R/Epi_MPC_run_V_no_delta.R
 \name{Epi_MPC_run_V_no_delta}
 \alias{Epi_MPC_run_V_no_delta}
-\title{Simulate Epidemic Dynamics with Vaccination but Without Variants}
+\title{Simulate Epidemic Dynamics with Vaccination but Without New Variants}
 \usage{
 Epi_MPC_run_V_no_delta(
   episimdata,
@@ -27,6 +27,8 @@ Epi_MPC_run_V_no_delta(
   \item \code{"I"}: Number of infected individuals.
   \item \code{"C"}: Reported cases.
   \item \code{"S"}: Number of susceptible individuals.
+  \item \code{"Lambda"}: Total infectiousness.
+  \item \code{"Lambda_C"}: Total infectiousness derived from cases.
   \item \code{"R_coeff"}: Policy reproduction coefficients.
   \item \code{"vaccination_rate"}: Rate of vaccination.
   \item \code{"delta_prevalence"}: Prevalence of the Delta variant (set to 0 in this function).
@@ -72,12 +74,11 @@ Epi_MPC_run_V_no_delta(
 }
 \value{
 A data frame containing updated simulation data with computed reproduction numbers,
-policies, vaccination effects, and other epidemic metrics.
+estimated policies, daily infection incidents, cases, deaths, and other epidemic metrics.
 }
 \description{
 This function simulates epidemic dynamics using predefined parameters and incorporates
-vaccination effects on population immunity. Unlike other models, it assumes no variant-specific
-adjustments, such as the Delta variant prevalence.
+vaccination effects on population immunity.
 }
 \details{
 This function models the effects of vaccination on epidemic dynamics without considering

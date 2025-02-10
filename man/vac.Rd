@@ -7,7 +7,7 @@
 vac(x, maxv, scale, start)
 }
 \arguments{
-\item{x}{Numeric vector representing time or another continuous variable.}
+\item{x}{Numeric vector representing time.}
 
 \item{maxv}{Maximum vaccination effect or uptake level.}
 
@@ -19,10 +19,10 @@ vac(x, maxv, scale, start)
 A numeric vector representing the vaccination effect, ensuring non-negative values.
 }
 \description{
-This function models the effect of vaccination over time using a scaled hyperbolic tangent function.
+This function models the effect of vaccination over time using a scaled hyperbolic tangent function to simulate the proportion of vaccinated individuals.
 }
 \details{
-The function applies a hyperbolic tangent transformation to model a smooth transition of vaccination uptake. The result is capped at a minimum of zero using `pmax()` to prevent negative values.
+The function applies a hyperbolic tangent transformation to model vaccination uptake. The result is capped at a minimum of zero using `pmax()` to prevent negative values.
 }
 \examples{
 x <- seq(0, 100, by = 1)

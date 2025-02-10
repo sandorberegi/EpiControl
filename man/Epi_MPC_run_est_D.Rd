@@ -2,7 +2,7 @@
 % Please edit documentation in R/Epi_MPC_run_est_D.R
 \name{Epi_MPC_run_est_D}
 \alias{Epi_MPC_run_est_D}
-\title{Simulate Epidemic Dynamics with Open-loop Estimation Using Deaths}
+\title{Simulate Epidemic Dynamics with MPC Using Deaths only for projections}
 \usage{
 Epi_MPC_run_est_D(
   episimdata,
@@ -26,16 +26,19 @@ Epi_MPC_run_est_D(
 \item{episimdata}{A data frame containing simulation data. It should include columns for:
 \itemize{
   \item \code{"I"}: Number of infected individuals.
-  \item \code{"Deaths"}: Number of deaths.
-  \item \code{"Lambda_C"}: Cumulative cases used for estimation.
+  \item \code{"C"}: Reported cases.
   \item \code{"S"}: Number of susceptible individuals.
-  \item \code{"R_coeff"}: Policy reproduction coefficients.
+  \item \code{"Lambda"}: Total infectiousness.
+  \item \code{"Deaths"}: Number of deaths.
+  \item \code{"Lambda_C"}: Total infectiousness derived from cases.
+  \item \code{"S"}: Number of susceptible individuals.
+  \item \code{"R_coeff"}: Coefficient of reproduction number reduction by policy.
 }}
 
 \item{epi_par}{A data frame of epidemiological parameters, including:
 \itemize{
   \item \code{"R0"}: Basic reproduction number.
-  \item \code{"gen_time"}: Disease generation time.
+  \item \code{"gen_time"}: Disease mean generation time.
   \item \code{"gen_time_var"}: Variance of the generation time.
   \item \code{"CFR"}: Case fatality rate.
   \item \code{"mortality_mean"}: Mean delay for mortality.
@@ -62,7 +65,7 @@ Epi_MPC_run_est_D(
 
 \item{R_est_wind}{An integer specifying the rolling window size for reproduction number estimation. Defaults to \code{5}.}
 
-\item{pathogen}{An integer or string identifying the pathogen for parameter selection. Defaults to \code{1}.}
+\item{pathogen}{An integer specifying the pathogen to extract corresponding epidemiological parameters. Defaults to \code{1}.}
 
 \item{susceptibles}{A binary value (\code{0} or \code{1}) indicating whether to simulate changes in susceptibles. Defaults to \code{1}.}
 
@@ -74,12 +77,11 @@ Epi_MPC_run_est_D(
 }
 \value{
 A data frame containing updated simulation data with computed reproduction numbers,
-estimated policies, rolling averages of deaths, and other epidemic metrics.
+estimated policies, daily infection incidents, cases, deaths, and other epidemic metrics.
 }
 \description{
 This function simulates epidemic dynamics using a predefined set of parameters and
-estimates reproduction numbers based on the rolling average of reported deaths.
-It employs an open-loop strategy for policy evaluation.
+estimates reproduction numbers based on the reported deaths.
 }
 \details{
 The function estimates reproduction numbers (\code{R0est}) based on deaths (\code{"Deaths"}) using

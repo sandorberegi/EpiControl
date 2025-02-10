@@ -1,21 +1,23 @@
-#' Simulate Epidemic Dynamics with Open-loop Estimation Using Deaths
+#' Simulate Epidemic Dynamics with MPC Using Deaths only for projections
 #'
 #' This function simulates epidemic dynamics using a predefined set of parameters and
-#' estimates reproduction numbers based on the rolling average of reported deaths.
-#' It employs an open-loop strategy for policy evaluation.
+#' estimates reproduction numbers based on the reported deaths.
 #'
 #' @param episimdata A data frame containing simulation data. It should include columns for:
 #'   \itemize{
 #'     \item \code{"I"}: Number of infected individuals.
-#'     \item \code{"Deaths"}: Number of deaths.
-#'     \item \code{"Lambda_C"}: Cumulative cases used for estimation.
+#'     \item \code{"C"}: Reported cases.
 #'     \item \code{"S"}: Number of susceptible individuals.
-#'     \item \code{"R_coeff"}: Policy reproduction coefficients.
+#'     \item \code{"Lambda"}: Total infectiousness.
+#'     \item \code{"Deaths"}: Number of deaths.
+#'     \item \code{"Lambda_C"}: Total infectiousness derived from cases.
+#'     \item \code{"S"}: Number of susceptible individuals.
+#'     \item \code{"R_coeff"}: Coefficient of reproduction number reduction by policy.
 #'   }
 #' @param epi_par A data frame of epidemiological parameters, including:
 #'   \itemize{
 #'     \item \code{"R0"}: Basic reproduction number.
-#'     \item \code{"gen_time"}: Disease generation time.
+#'     \item \code{"gen_time"}: Disease mean generation time.
 #'     \item \code{"gen_time_var"}: Variance of the generation time.
 #'     \item \code{"CFR"}: Case fatality rate.
 #'     \item \code{"mortality_mean"}: Mean delay for mortality.
@@ -34,7 +36,7 @@
 #' @param start_day An integer indicating the start day of the simulation. Defaults to \code{1}.
 #' @param ndays An integer specifying the total number of simulation days. Defaults to the number of rows in \code{episimdata}.
 #' @param R_est_wind An integer specifying the rolling window size for reproduction number estimation. Defaults to \code{5}.
-#' @param pathogen An integer or string identifying the pathogen for parameter selection. Defaults to \code{1}.
+#' @param pathogen An integer specifying the pathogen to extract corresponding epidemiological parameters. Defaults to \code{1}.
 #' @param susceptibles A binary value (\code{0} or \code{1}) indicating whether to simulate changes in susceptibles. Defaults to \code{1}.
 #' @param delay A binary value (\code{0} or \code{1}) indicating whether to simulate reporting delays. Defaults to \code{0}.
 #' @param ur A binary value (\code{0} or \code{1}) indicating whether to simulate under-reporting. Defaults to \code{0}.
@@ -46,7 +48,7 @@
 #' @param N A numeric value representing the total population size. Defaults to \code{1e6}.
 #'
 #' @return A data frame containing updated simulation data with computed reproduction numbers,
-#' estimated policies, rolling averages of deaths, and other epidemic metrics.
+#' estimated policies, daily infection incidents, cases, deaths, and other epidemic metrics.
 #'
 #' @details
 #' The function estimates reproduction numbers (\code{R0est}) based on deaths (\code{"Deaths"}) using
@@ -72,8 +74,6 @@
 #' )
 #'
 #' @export
-
-# Simulate the epidemic without control ('open-loop') pre-defined parameters.
 
 Epi_MPC_run_est_D <- function(episimdata, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, r_dir = 1, N = 1e6) {
 
@@ -118,7 +118,6 @@ Epi_MPC_run_est_D <- function(episimdata, epi_par, noise_par, actions, pred_days
     } else {
 
       episimdata[ii, 'Rest'] <- mean(episimdata[(ii-R_est_wind):(ii-1), 'Deaths'])/mean(episimdata[(ii-R_est_wind):(ii-1), 'Lambda_C'])
-      #R_coeff_tmp <- sum(Ygen[1:R_est_wind] * episimdata[(ii-1):(ii-R_est_wind), 'R_coeff'])/sum(Ygen[1:R_est_wind])
 
       if (r_dir == 1){
         R_coeff_tmp <-  mean(episimdata[(ii-R_est_wind):(ii-1), 'R_coeff'])
@@ -137,8 +136,6 @@ Epi_MPC_run_est_D <- function(episimdata, epi_par, noise_par, actions, pred_days
       episimdata[ii, 'R0est'] <- 0
     }
 
-    #print(episimdata[ii, 'R0est'])
-
     if (ii %% rf == 0L) {
       Rewards <- replicate(number_of_actions, 0)
       for (jj in 1:number_of_actions){
@@ -149,7 +146,7 @@ Epi_MPC_run_est_D <- function(episimdata, epi_par, noise_par, actions, pred_days
         exp_reward <- mean(Reward_ens)
         Rewards[jj] <- exp_reward
       }
-      #print(Rewards)
+
       episimdata[ii, 'policy'] <- which.max(Rewards)
     } else {
       episimdata[ii, 'policy'] <- episimdata[ii-1, 'policy']
@@ -179,7 +176,6 @@ Epi_MPC_run_est_D <- function(episimdata, epi_par, noise_par, actions, pred_days
       pois_input <- sum(episimdata[(ii-1):1,'I']*episimdata[ii:2,'Re']*Ygen[1:(ii-1)])
     }
 
-    #print(pois_input)
     episimdata[ii,'I'] <- rpois(1, pois_input)
     if (susceptibles == 1) {
       episimdata[ii, 'S'] <- episimdata[(ii-1), 'S'] - episimdata[ii,'I']

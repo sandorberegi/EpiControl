@@ -6,7 +6,7 @@
 #'
 #' @param episimdata A data frame containing simulation data. It should include columns for
 #' \code{"I"} (infected individuals), \code{"C"} (cases), \code{"Deaths"}, \code{"S"} (susceptible individuals),
-#' \code{"R_coeff"}, and related epidemiological metrics.
+#' \code{"R_coeff"} (Coefficient of reproduction number reduction by policy), and related epidemiological metrics.
 #' @param epi_par A data frame containing epidemiological parameters for the pathogen, including:
 #' \itemize{
 #'   \item \code{"R0"}: Basic reproduction number.
@@ -46,12 +46,12 @@
 #' @param LD_on Threshold for starting lockdown
 #' @param LD_off Threshold for ending lockdown
 #'
-#' @return A data frame containing the updated simulation data with columns for dynamically computed reproduction numbers,
-#' rolling averages of deaths, policies, and other epidemic metrics.
+#' @return A data frame containing updated simulation data with computed reproduction numbers,
+#' estimated policies, daily infection incidents, cases, deaths, and other epidemic metrics.
 #'
 #' @details
 #' The function employs a threshold-based approach to policy control, where interventions such as lockdowns are
-#' triggered based on rolling averages of deaths (\code{Deaths_roll_avg}). Policies are evaluated periodically,
+#' triggered based on rolling averages of deaths (\code{Deaths_roll_avg}). Deaths may also refer to other metrics that are delayed from infections, e.g. ICU cases. Policies are evaluated periodically,
 #' and transitions occur when the rolling average exceeds or drops below predefined thresholds.
 #'
 #' @examples
@@ -73,8 +73,6 @@
 #' )
 #'
 #' @export
-
-# Simulate the epidemic without control ('open-loop') pre-defined parameters.
 
 Epi_MPC_run_wd_thr <- function(episimdata, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, r_dir = 0, N = 1e6) {
 
@@ -121,7 +119,6 @@ Epi_MPC_run_wd_thr <- function(episimdata, epi_par, noise_par, actions, pred_day
     } else {
 
       episimdata[ii, 'Rest'] <- mean(episimdata[(ii-R_est_wind):(ii-1), 'C'])/mean(episimdata[(ii-R_est_wind):(ii-1), 'Lambda_C'])
-      #R_coeff_tmp <- sum(Ygen[1:R_est_wind] * episimdata[(ii-1):(ii-R_est_wind), 'R_coeff'])/sum(Ygen[1:R_est_wind])
 
       if (r_dir == 1){
         R_coeff_tmp <-  mean(episimdata[(ii-R_est_wind):(ii-1), 'R_coeff'])
@@ -184,7 +181,6 @@ Epi_MPC_run_wd_thr <- function(episimdata, epi_par, noise_par, actions, pred_day
       pois_input <- sum(episimdata[(ii-1):1,'I']*episimdata[ii:2,'Re']*Ygen[1:(ii-1)])
     }
 
-    #print(pois_input)
     episimdata[ii,'I'] <- rpois(1, pois_input)
     if (susceptibles == 1) {
       episimdata[ii, 'S'] <- episimdata[(ii-1), 'S'] - episimdata[ii,'I']

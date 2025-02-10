@@ -2,7 +2,7 @@
 % Please edit documentation in R/Epi_pred_wd.R
 \name{Epi_pred_wd}
 \alias{Epi_pred_wd}
-\title{Simulate Epidemic Dynamics and Compute Expected Reward}
+\title{Projection of epidemic outcomes and calculating expected reward}
 \usage{
 Epi_pred_wd(
   episimdata,
@@ -30,12 +30,12 @@ have the following columns: \code{"R0"} (basic reproduction number), \code{"gen_
 (generation time), \code{"gen_time_var"} (variance of generation time), \code{"CFR"}
 (case fatality rate), \code{"mortality_mean"}, and \code{"mortality_var"}.}
 
-\item{noise_par}{A placeholder for noise parameters. Not used in projections.}
+\item{noise_par}{A placeholder for surveillance noise parameters. Not used in projections.}
 
 \item{actions}{A data frame containing control actions. Column 2 is expected to modify the effective
 reproduction number (\code{"Re"}).}
 
-\item{pathogen}{A string specifying the pathogen name to extract corresponding epidemiological parameters.}
+\item{pathogen}{An integer specifying the pathogen to extract corresponding epidemiological parameters.}
 
 \item{pred_days}{An integer specifying the number of days to predict ahead.}
 
@@ -65,13 +65,13 @@ immediate rewards over longer term rewards.}
 A numeric value representing the expected discounted reward over the prediction window.
 }
 \description{
-This function simulates an epidemic using pre-defined parameters
-and computes the expected reward over a specified projection window.
+This function projects epidemic progression based on given parameters,
+simulating infections and deaths over a prediction window. It incorporates
+intervention effects and computes expected reward values.
 }
 \details{
 The function simulates the epidemic using specified parameters and computes rewards for each
-day within the prediction window. It supports dynamic updates for cases, reproduction numbers,
-and deaths based on a Poisson process and delayed distributions for secondary cases and mortality.
+day within the prediction window.
 Rewards are calculated using the \code{\link{reward_fun_wd}} function and are discounted
 exponentially using the discount factor \code{gamma}.
 }

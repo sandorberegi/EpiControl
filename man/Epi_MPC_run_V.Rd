@@ -2,7 +2,7 @@
 % Please edit documentation in R/Epi_MPC_run_V.R
 \name{Epi_MPC_run_V}
 \alias{Epi_MPC_run_V}
-\title{Simulate Epidemic Dynamics with Vaccination and Variants}
+\title{Simulate Epidemic Dynamics with Vaccination and a New Variants}
 \usage{
 Epi_MPC_run_V(
   episimdata,
@@ -27,7 +27,7 @@ Epi_MPC_run_V(
   \item \code{"I"}: Number of infected individuals.
   \item \code{"C"}: Reported cases.
   \item \code{"S"}: Number of susceptible individuals.
-  \item \code{"R_coeff"}: Policy reproduction coefficients.
+  \item \code{"R_coeff"}: Coefficient of reproduction number reduction by policy.
   \item \code{"vaccination_rate"}: Rate of vaccination.
   \item \code{"delta_prevalence"}: Prevalence of the Delta variant.
   \item \code{"immunity"}: Level of population immunity.
@@ -72,7 +72,7 @@ Epi_MPC_run_V(
 }
 \value{
 A data frame containing updated simulation data with computed reproduction numbers,
-policies, vaccination effects, variant-specific adjustments, and other epidemic metrics.
+estimated policies, daily infection incidents, cases, deaths, and other epidemic metrics.
 }
 \description{
 This function simulates epidemic dynamics using predefined parameters and incorporates

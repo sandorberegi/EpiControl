@@ -2,25 +2,25 @@
 % Please edit documentation in R/delta.R
 \name{delta}
 \alias{delta}
-\title{Logistic Transition Function}
+\title{Logistic Transition Function for new variant prevalence.}
 \usage{
 delta(x, scale, start)
 }
 \arguments{
-\item{x}{Numeric vector representing time or another continuous variable.}
+\item{x}{Numeric vector representing time.}
 
 \item{scale}{Scaling factor controlling the rate of transition.}
 
-\item{start}{The time point at which the transition begins.}
+\item{start}{The time point at which the new variant appears.}
 }
 \value{
-A numeric vector representing the transition effect, ranging between 0 and 1.
+A numeric vector representing the transition effect for new variant prevalence, ranging between 0 and 1.
 }
 \description{
-This function models a smooth logistic transition using a scaled hyperbolic tangent function.
+Used in the COVID-19 Delta/Alpha variants example but can be used to model any generic new variant that becomes prevalent over the old one over time.
 }
 \details{
-The function applies a hyperbolic tangent transformation to model a smooth transition. The output is shifted and scaled to range between 0 and 1.
+The function applies a hyperbolic tangent transformation to model a new more transmissible pathogen variant (e.g. for COVID-19 delta becoming more prevalent than alpha). The output is shifted and scaled to range between 0 and 1.
 }
 \examples{
 x <- seq(0, 100, by = 1)

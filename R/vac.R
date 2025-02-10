@@ -1,15 +1,15 @@
 #' Vaccination Effect Over Time
 #'
-#' This function models the effect of vaccination over time using a scaled hyperbolic tangent function.
+#' This function models the effect of vaccination over time using a scaled hyperbolic tangent function to simulate the proportion of vaccinated individuals.
 #'
-#' @param x Numeric vector representing time or another continuous variable.
+#' @param x Numeric vector representing time.
 #' @param maxv Maximum vaccination effect or uptake level.
 #' @param scale Scaling factor controlling the rate of change.
 #' @param start The time point at which vaccination starts to take effect.
 #'
 #' @return A numeric vector representing the vaccination effect, ensuring non-negative values.
 #'
-#' @details The function applies a hyperbolic tangent transformation to model a smooth transition of vaccination uptake. The result is capped at a minimum of zero using `pmax()` to prevent negative values.
+#' @details The function applies a hyperbolic tangent transformation to model vaccination uptake. The result is capped at a minimum of zero using `pmax()` to prevent negative values.
 #'
 #' @examples
 #' x <- seq(0, 100, by = 1)

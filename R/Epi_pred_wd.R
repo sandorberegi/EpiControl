@@ -1,7 +1,8 @@
-#' Simulate Epidemic Dynamics and Compute Expected Reward
+#' Projection of epidemic outcomes and calculating expected reward
 #'
-#' This function simulates an epidemic using pre-defined parameters
-#' and computes the expected reward over a specified projection window.
+#' This function projects epidemic progression based on given parameters,
+#' simulating infections and deaths over a prediction window. It incorporates
+#' intervention effects and computes expected reward values.
 #'
 #' @param episimdata A data frame containing simulation data. It should include columns such as
 #' \code{"C"} (cases), \code{"I"} (infected individuals), \code{"Re"} (effective reproduction number),
@@ -10,10 +11,10 @@
 #' have the following columns: \code{"R0"} (basic reproduction number), \code{"gen_time"}
 #' (generation time), \code{"gen_time_var"} (variance of generation time), \code{"CFR"}
 #' (case fatality rate), \code{"mortality_mean"}, and \code{"mortality_var"}.
-#' @param noise_par A placeholder for noise parameters. Not used in projections.
+#' @param noise_par A placeholder for surveillance noise parameters. Not used in projections.
 #' @param actions A data frame containing control actions. Column 2 is expected to modify the effective
 #' reproduction number (\code{"Re"}).
-#' @param pathogen A string specifying the pathogen name to extract corresponding epidemiological parameters.
+#' @param pathogen An integer specifying the pathogen to extract corresponding epidemiological parameters.
 #' @param pred_days An integer specifying the number of days to predict ahead.
 #' @param r_dir An integer specifying the reproduction number adjustments:
 #' \itemize{
@@ -35,8 +36,7 @@
 #'
 #' @details
 #' The function simulates the epidemic using specified parameters and computes rewards for each
-#' day within the prediction window. It supports dynamic updates for cases, reproduction numbers,
-#' and deaths based on a Poisson process and delayed distributions for secondary cases and mortality.
+#' day within the prediction window.
 #' Rewards are calculated using the \code{\link{reward_fun_wd}} function and are discounted
 #' exponentially using the discount factor \code{gamma}.
 #'
@@ -55,9 +55,6 @@
 #' )
 #'
 #' @export
-
-
-# Simulate the epidemic without control ('open-loop') pre-defined parameters.
 
 Epi_pred_wd <- function(episimdata, epi_par, noise_par, actions, pathogen, pred_days, r_dir, kk, jj, N, ndays = nrow(episimdata), pred_susceptibles = 0, gamma = 0.95) {
 
@@ -106,7 +103,7 @@ Epi_pred_wd <- function(episimdata, epi_par, noise_par, actions, pathogen, pred_
     } else {
       pois_input <- sum(episimdata[(ii-1):1,'C']*episimdata[ii:2,'Re']*Ygen[1:(ii-1)])
     }
-    #print(pois_input)
+
     episimdata[ii,'C'] <- rpois(1, pois_input)
 
     if (pred_susceptibles == 1) {

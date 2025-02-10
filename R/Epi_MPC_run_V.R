@@ -1,4 +1,4 @@
-#' Simulate Epidemic Dynamics with Vaccination and Variants
+#' Simulate Epidemic Dynamics with Vaccination and a New Variants
 #'
 #' This function simulates epidemic dynamics using predefined parameters and incorporates
 #' vaccination and variant-specific adjustments to the reproduction number and population immunity.
@@ -9,7 +9,7 @@
 #'     \item \code{"I"}: Number of infected individuals.
 #'     \item \code{"C"}: Reported cases.
 #'     \item \code{"S"}: Number of susceptible individuals.
-#'     \item \code{"R_coeff"}: Policy reproduction coefficients.
+#'     \item \code{"R_coeff"}: Coefficient of reproduction number reduction by policy.
 #'     \item \code{"vaccination_rate"}: Rate of vaccination.
 #'     \item \code{"delta_prevalence"}: Prevalence of the Delta variant.
 #'     \item \code{"immunity"}: Level of population immunity.
@@ -40,7 +40,7 @@
 #' @param N A numeric value specifying the total population size. Defaults to \code{1e6}.
 #'
 #' @return A data frame containing updated simulation data with computed reproduction numbers,
-#' policies, vaccination effects, variant-specific adjustments, and other epidemic metrics.
+#' estimated policies, daily infection incidents, cases, deaths, and other epidemic metrics.
 #'
 #' @details
 #' This function models the effects of vaccination and variants (e.g., Delta) on epidemic dynamics.
@@ -69,9 +69,6 @@
 #' )
 #'
 #' @export
-
-
-# Simulate the epidemic without control ('open-loop') pre-defined parameters.
 
 Epi_MPC_run_V <- function(episimdata, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, N = 1e6) {
 
@@ -109,7 +106,6 @@ Epi_MPC_run_V <- function(episimdata, epi_par, noise_par, actions, pred_days, n_
     } else {
 
       episimdata[ii, 'Rest'] <- mean(episimdata[(ii-R_est_wind):(ii-1), 'C'])/mean(episimdata[(ii-R_est_wind):(ii-1), 'Lambda_C'])
-      #R_coeff_tmp <- sum(Ygen[1:R_est_wind] * episimdata[(ii-1):(ii-R_est_wind), 'R_coeff'])/sum(Ygen[1:R_est_wind])
       R_coeff_tmp <- sum(Ygen[1:(ii-R_est_wind)] * episimdata[(ii-R_est_wind):1, 'R_coeff'])/sum(Ygen[1:(ii-R_est_wind)])
     }
 
@@ -125,7 +121,7 @@ Epi_MPC_run_V <- function(episimdata, epi_par, noise_par, actions, pred_days, n_
         exp_reward <- mean(Reward_ens)
         Rewards[jj] <- exp_reward
       }
-      #print(Rewards)
+
       episimdata[ii, 'policy'] <- which.max(Rewards)
     } else {
       episimdata[ii, 'policy'] <- episimdata[ii-1, 'policy']
@@ -156,7 +152,7 @@ Epi_MPC_run_V <- function(episimdata, epi_par, noise_par, actions, pred_days, n_
     episimdata[ii, 'Lambda_C'] <- sum(episimdata[(ii-1):1,'C']*Ygen[1:(ii-1)])
 
     pois_input <- sum(episimdata[(ii-1):1,'I']*episimdata[ii:2,'Re']*Ygen[1:(ii-1)])
-    #print(pois_input)
+
     episimdata[ii,'I'] <- rpois(1, pois_input)
     if (susceptibles == 1) {
       episimdata[ii, 'S'] <- episimdata[(ii-1), 'S'] - episimdata[ii,'I']

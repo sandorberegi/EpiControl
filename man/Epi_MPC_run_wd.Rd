@@ -25,12 +25,12 @@ Epi_MPC_run_wd(
 \arguments{
 \item{episimdata}{A data frame containing simulation data. It should include columns such as
 \code{"C"} (cases), \code{"I"} (infected individuals), \code{"Re"} (effective reproduction number),
-\code{"S"} (susceptible individuals), \code{"Deaths"}, and \code{"Lambda"}.}
+\code{"S"} (susceptible individuals), \code{"Deaths"}, and \code{"Lambda"} total infectiousness.}
 
 \item{epi_par}{A data frame containing epidemiological parameters for various pathogens. It should
 have the following columns: \code{"R0"} (basic reproduction number), \code{"gen_time"}
 (generation time), \code{"gen_time_var"} (variance of generation time), \code{"CFR"}
-(case fatality rate), \code{"mortality_mean"}, and \code{"mortality_var"}.}
+(case fatality rate), \code{"mortality_mean"} (mean mortality delay), and \code{"mortality_var"} (mortality delay variance).}
 
 \item{noise_par}{A data frame containing noise parameters for under-reporting and reporting delays:
 \itemize{
@@ -38,8 +38,6 @@ have the following columns: \code{"R0"} (basic reproduction number), \code{"gen_
   \item \code{"del_disp"}: Dispersion parameter for the reporting delay distribution.
   \item \code{"ur_mean"}: Mean for the under-reporting rate.
   \item \code{"ur_beta_a"}: Alpha parameter of the Beta distribution for under-reporting.
-  \item \code{"ur_beta_b"}: Beta parameter of the Beta distribution for under-reporting, computed as
-  \code{(1 - ur_mean) / ur_mean * ur_beta_a}.
 }}
 
 \item{actions}{A data frame containing control actions. It should include columns like \code{"R_coeff"}.}
@@ -72,8 +70,8 @@ have the following columns: \code{"R0"} (basic reproduction number), \code{"gen_
 \item{N}{A numeric value representing the total population size. Defaults to \code{1e6}.}
 }
 \value{
-A data frame containing the updated simulation data with dynamically computed reproduction numbers,
-policies, cases, and deaths.
+A data frame containing updated simulation data with computed reproduction numbers,
+estimated policies, daily infection incidents, cases, deaths, and other epidemic metrics.
 }
 \description{
 This function simulates an epidemic under model predictive control (MPC) using pre-defined parameters.

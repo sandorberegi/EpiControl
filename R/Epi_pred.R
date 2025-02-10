@@ -1,12 +1,14 @@
-#' Simulate an Epidemic Without Control ('Open-Loop') -- use when death data is not available
+#' Projection of epidemic outcomes and calculating expected reward -- use when death data is not available
 #'
-#' This function simulates the progression of an epidemic without intervention, using predefined parameters.
+#' #' This function projects epidemic progression based on given parameters,
+#' simulating infections and deaths over a prediction window. It incorporates
+#' intervention effects and computes expected reward values.
 #'
 #' @param episimdata A data frame containing epidemic simulation data.
-#' @param epi_par A matrix of epidemiological parameters, with rows corresponding to different pathogens.
+#' @param epi_par A data frame of epidemiological parameters, with rows corresponding to different pathogens.
 #' @param noise_par A parameter related to stochastic noise in the epidemic simulation (not used in the function).
-#' @param actions A matrix of control actions, where the second column modifies the estimated reproduction number.
-#' @param pathogen A character or numeric index specifying the pathogen of interest in `epi_par`.
+#' @param actions A data frame of control actions, where the second column modifies the estimated reproduction number.
+#' @param pathogen An integer specifying the pathogen to extract corresponding epidemiological parameters.
 #' @param pred_days The number of days to predict forward.
 #' @param kk The starting day of prediction.
 #' @param jj The index of the action scenario being simulated.

@@ -2,7 +2,7 @@
 % Please edit documentation in R/Epi_pred.R
 \name{Epi_pred}
 \alias{Epi_pred}
-\title{Simulate an Epidemic Without Control ('Open-Loop') -- use when death data is not available}
+\title{Projection of epidemic outcomes and calculating expected reward -- use when death data is not available}
 \usage{
 Epi_pred(
   episimdata,
@@ -22,13 +22,13 @@ Epi_pred(
 \arguments{
 \item{episimdata}{A data frame containing epidemic simulation data.}
 
-\item{epi_par}{A matrix of epidemiological parameters, with rows corresponding to different pathogens.}
+\item{epi_par}{A data frame of epidemiological parameters, with rows corresponding to different pathogens.}
 
 \item{noise_par}{A parameter related to stochastic noise in the epidemic simulation (not used in the function).}
 
-\item{actions}{A matrix of control actions, where the second column modifies the estimated reproduction number.}
+\item{actions}{A data frame of control actions, where the second column modifies the estimated reproduction number.}
 
-\item{pathogen}{A character or numeric index specifying the pathogen of interest in `epi_par`.}
+\item{pathogen}{An integer specifying the pathogen to extract corresponding epidemiological parameters.}
 
 \item{pred_days}{The number of days to predict forward.}
 
@@ -48,7 +48,9 @@ Epi_pred(
 The expected reward (`Exp_rew`) over the simulation period.
 }
 \description{
-This function simulates the progression of an epidemic without intervention, using predefined parameters.
+#' This function projects epidemic progression based on given parameters,
+simulating infections and deaths over a prediction window. It incorporates
+intervention effects and computes expected reward values.
 }
 \details{
 This function updates the effective reproduction number (`Re`), computes the expected number of new cases (`C`), and applies a discount factor to rewards computed using `reward_fun`. The function assumes that cases follow a Poisson process and uses a gamma-distributed generation time to estimate the infection dynamics.

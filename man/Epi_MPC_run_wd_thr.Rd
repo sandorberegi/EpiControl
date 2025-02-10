@@ -25,7 +25,7 @@ Epi_MPC_run_wd_thr(
 \arguments{
 \item{episimdata}{A data frame containing simulation data. It should include columns for
 \code{"I"} (infected individuals), \code{"C"} (cases), \code{"Deaths"}, \code{"S"} (susceptible individuals),
-\code{"R_coeff"}, and related epidemiological metrics.}
+\code{"R_coeff"} (Coefficient of reproduction number reduction by policy), and related epidemiological metrics.}
 
 \item{epi_par}{A data frame containing epidemiological parameters for the pathogen, including:
 \itemize{
@@ -75,8 +75,8 @@ Epi_MPC_run_wd_thr(
 \item{LD_off}{Threshold for ending lockdown}
 }
 \value{
-A data frame containing the updated simulation data with columns for dynamically computed reproduction numbers,
-rolling averages of deaths, policies, and other epidemic metrics.
+A data frame containing updated simulation data with computed reproduction numbers,
+estimated policies, daily infection incidents, cases, deaths, and other epidemic metrics.
 }
 \description{
 This function simulates an epidemic using predefined parameters while dynamically
@@ -85,7 +85,7 @@ rolling averages of deaths.
 }
 \details{
 The function employs a threshold-based approach to policy control, where interventions such as lockdowns are
-triggered based on rolling averages of deaths (\code{Deaths_roll_avg}). Policies are evaluated periodically,
+triggered based on rolling averages of deaths (\code{Deaths_roll_avg}). Deaths may also refer to other metrics that are delayed from infections, e.g. ICU cases. Policies are evaluated periodically,
 and transitions occur when the rolling average exceeds or drops below predefined thresholds.
 }
 \examples{

@@ -5,19 +5,17 @@
 #'
 #' @param episimdata A data frame containing simulation data. It should include columns such as
 #' \code{"C"} (cases), \code{"I"} (infected individuals), \code{"Re"} (effective reproduction number),
-#' \code{"S"} (susceptible individuals), \code{"Deaths"}, and \code{"Lambda"}.
+#' \code{"S"} (susceptible individuals), \code{"Deaths"}, and \code{"Lambda"} total infectiousness.
 #'@param epi_par A data frame containing epidemiological parameters for various pathogens. It should
 #' have the following columns: \code{"R0"} (basic reproduction number), \code{"gen_time"}
 #' (generation time), \code{"gen_time_var"} (variance of generation time), \code{"CFR"}
-#' (case fatality rate), \code{"mortality_mean"}, and \code{"mortality_var"}.
+#' (case fatality rate), \code{"mortality_mean"} (mean mortality delay), and \code{"mortality_var"} (mortality delay variance).
 #' @param noise_par A data frame containing noise parameters for under-reporting and reporting delays:
 #' \itemize{
 #'   \item \code{"repd_mean"}: Mean of the reporting delay.
 #'   \item \code{"del_disp"}: Dispersion parameter for the reporting delay distribution.
 #'   \item \code{"ur_mean"}: Mean for the under-reporting rate.
 #'   \item \code{"ur_beta_a"}: Alpha parameter of the Beta distribution for under-reporting.
-#'   \item \code{"ur_beta_b"}: Beta parameter of the Beta distribution for under-reporting, computed as
-#'   \code{(1 - ur_mean) / ur_mean * ur_beta_a}.
 #' }
 #' @param actions A data frame containing control actions. It should include columns like \code{"R_coeff"}.
 #' @param pred_days An integer specifying the number of days to predict ahead in reward calculation.
@@ -37,8 +35,8 @@
 #' }
 #' @param N A numeric value representing the total population size. Defaults to \code{1e6}.
 #'
-#' @return A data frame containing the updated simulation data with dynamically computed reproduction numbers,
-#' policies, cases, and deaths.
+#' @return A data frame containing updated simulation data with computed reproduction numbers,
+#' estimated policies, daily infection incidents, cases, deaths, and other epidemic metrics.
 #'
 #' @details
 #' The function employs a model predictive control strategy where actions are evaluated periodically
@@ -65,8 +63,6 @@
 #' )
 #'
 #' @export
-
-# Simulate the epidemic without control ('open-loop') pre-defined parameters.
 
 Epi_MPC_run_wd <- function(episimdata, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, r_dir = 1, N = 1e6) {
 
@@ -111,7 +107,6 @@ Epi_MPC_run_wd <- function(episimdata, epi_par, noise_par, actions, pred_days, n
     } else {
 
       episimdata[ii, 'Rest'] <- mean(episimdata[(ii-R_est_wind):(ii-1), 'C'])/mean(episimdata[(ii-R_est_wind):(ii-1), 'Lambda_C'])
-      #R_coeff_tmp <- sum(Ygen[1:R_est_wind] * episimdata[(ii-1):(ii-R_est_wind), 'R_coeff'])/sum(Ygen[1:R_est_wind])
 
       if (r_dir == 1){
         R_coeff_tmp <-  mean(episimdata[(ii-R_est_wind):(ii-1), 'R_coeff'])
@@ -132,7 +127,7 @@ Epi_MPC_run_wd <- function(episimdata, epi_par, noise_par, actions, pred_days, n
         exp_reward <- mean(Reward_ens)
         Rewards[jj] <- exp_reward
       }
-      #print(Rewards)
+
       episimdata[ii, 'policy'] <- which.max(Rewards)
     } else {
       episimdata[ii, 'policy'] <- episimdata[ii-1, 'policy']
@@ -162,7 +157,6 @@ Epi_MPC_run_wd <- function(episimdata, epi_par, noise_par, actions, pred_days, n
       pois_input <- sum(episimdata[(ii-1):1,'I']*episimdata[ii:2,'Re']*Ygen[1:(ii-1)])
     }
 
-    #print(pois_input)
     episimdata[ii,'I'] <- rpois(1, pois_input)
     if (susceptibles == 1) {
       episimdata[ii, 'S'] <- episimdata[(ii-1), 'S'] - episimdata[ii,'I']
