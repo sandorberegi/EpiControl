@@ -100,14 +100,24 @@ Epi_MPC_run_V <- function(episimdata, epi_par, noise_par, actions, pred_days, n_
     #estimate the reproduction number from data
     R_coeff_tmp <- 0.0
 
-    if (ii-1 < R_est_wind) {
-      episimdata[ii, 'Rest'] <- mean(episimdata[1:(ii-1), 'C'])/mean(episimdata[1:(ii-1), 'Lambda_C'])
-      R_coeff_tmp <- sum(Ygen[1:(ii-1)] * episimdata[(ii-1):1, 'R_coeff'])/sum(Ygen[1:(ii-1)])
-    } else {
+    R_est_res <- R_estim(episimdata, Ygen, ii, R_est_wind = R_est_wind, r_dir = r_dir)
 
-      episimdata[ii, 'Rest'] <- mean(episimdata[(ii-R_est_wind):(ii-1), 'C'])/mean(episimdata[(ii-R_est_wind):(ii-1), 'Lambda_C'])
-      R_coeff_tmp <- sum(Ygen[1:(ii-R_est_wind)] * episimdata[(ii-R_est_wind):1, 'R_coeff'])/sum(Ygen[1:(ii-R_est_wind)])
-    }
+    episimdata[ii, 'Rest'] <- R_est_res$R_est
+    R_coeff_tmp <- R_est_res$R_coeff_tmp
+
+    #    if (ii-1 < R_est_wind) {
+    #      episimdata[ii, 'Rest'] <- mean(episimdata[1:(ii-1), 'C'])/mean(episimdata[1:(ii-1), 'Lambda_C'])
+    #      R_coeff_tmp <- sum(Ygen[1:(ii-1)] * episimdata[(ii-1):1, 'R_coeff'])/sum(Ygen[1:(ii-1)])
+    #    } else {
+    #
+    #      episimdata[ii, 'Rest'] <- mean(episimdata[(ii-R_est_wind):(ii-1), 'C'])/mean(episimdata[(ii-R_est_wind):(ii-1), 'Lambda_C'])
+    #
+    #      if (r_dir == 1){
+    #        R_coeff_tmp <-  mean(episimdata[(ii-R_est_wind):(ii-1), 'R_coeff'])
+    #      } else {
+    #        R_coeff_tmp <- sum(Ygen[1:(ii-R_est_wind)] * episimdata[(ii-R_est_wind):1, 'R_coeff'])/sum(Ygen[1:(ii-R_est_wind)])
+    #      }
+    #    }
 
     episimdata[ii, 'R0est'] <- episimdata[ii, 'Rest'] / R_coeff_tmp
 

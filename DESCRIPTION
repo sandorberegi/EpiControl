@@ -1,7 +1,7 @@
 Package: EpiControl
 Type: Package
 Title: Simulation Framework for Epidemic Dynamics and Optimal Control Policies
-Version: 0.1.0
+Version: 0.2.0
 Author: Sandor Beregi
 Maintainer: Sandor Beregi <s.beregi@imperial.ac.uk>
 Description: A framework for simulating epidemic dynamics and evaluating optimal control policies. 
