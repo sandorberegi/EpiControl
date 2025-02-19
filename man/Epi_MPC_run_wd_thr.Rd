@@ -68,6 +68,12 @@ Epi_MPC_run_wd_thr(
 
 \item{ur}{A binary value (\code{0} or \code{1}) indicating whether to simulate under-reporting. Defaults to \code{0}.}
 
+\item{r_dir}{An integer indicating reproduction number adjustments:
+\itemize{
+\item \code{1} for direct \code{Re}.
+\item \code{2} for logistic adjustments.
+\item \code{0} for using the generation time distribution.}}
+
 \item{N}{A numeric value representing the total population size. Defaults to \code{1e6}.}
 
 \item{LD_on}{Threshold for starting lockdown}

@@ -44,7 +44,7 @@
 #' \itemize{
 #' \item \code{1} for direct \code{Re}.
 #' \item \code{2} for logistic adjustments.
-#' \item \code{0} for using the generation time distribution.
+#' \item \code{0} for using the generation time distribution.}
 #' @param N A numeric value representing the total population size. Defaults to \code{1e6}.
 #'
 #' @return A data frame containing updated simulation data with computed reproduction numbers,

@@ -40,7 +40,7 @@
 #' \itemize{
 #' \item \code{1} for direct \code{Re}.
 #' \item \code{2} for logistic adjustments.
-#' \item \code{0} for using the generation time distribution.
+#' \item \code{0} for using the generation time distribution.}
 #' @param N A numeric value representing the total population size. Defaults to \code{1e6}.
 #'
 #' @param LD_on Threshold for starting lockdown
