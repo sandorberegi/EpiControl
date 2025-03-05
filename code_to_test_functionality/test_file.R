@@ -31,7 +31,7 @@ Action_space <- data.frame(
 )
 
 sim_settings <- list(
-  ndays = 83 * 7, #simulation length
+  ndays = 10 * 7, #simulation length
   start_day = 1,
   N = 1e7, # population size
   I0 = 10, # initial infections
@@ -59,11 +59,13 @@ sim_settings <- list(
   susceptibles = 0,
   delay = 1,
   ur = 1,
-  r_dir = 2
+  r_dir = 2,
+  LD_on <- 14, #on threshold
+  LD_off <- 7 #off threshold
 )
 
 episettings <- list(
-  sim_function = Epi_MPC_run_est_D,
+  sim_function = Epi_MPC_run_wd,
   projection_function = Epi_pred_wd,
   reward_function = reward_fun_wd,
   R_estimator = R_estim,

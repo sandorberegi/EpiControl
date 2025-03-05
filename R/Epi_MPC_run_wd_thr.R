@@ -74,7 +74,7 @@
 #'
 #' @export
 
-Epi_MPC_run_wd_thr <- function(episimdata, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, r_dir = 0, N = 1e6) {
+Epi_MPC_run_wd_thr <- function(episimdata, episettings, sim_settings, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, r_dir = 0, N = 1e6) {
 
   last_changed <- 2L
 

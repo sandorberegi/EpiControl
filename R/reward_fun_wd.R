@@ -38,7 +38,18 @@
 #'
 #' @export
 
-reward_fun_wd <- function(episimdata,alpha,alpha_d,ovp,dovp,C_target,C_target_pen,D_target,D_target_pen,actions,ii,jj) {
+reward_fun_wd <- function(episimdata,episettings,actions,ii,jj) {
+
+  sim_settings <- episettings$sim_settings
+
+  alpha <- sim_settings$alpha
+  alpha_d <- sim_settings$alpha_d
+  ovp <- sim_settings$ovp
+  dovp <- sim_settings$dovp
+  C_target <- sim_settings$C_target
+  C_target_pen <- sim_settings$C_target_pen
+  D_target <- sim_settings$D_target
+  D_target_pen <- sim_settings$D_target_pen
 
   C_err_pred <- abs(episimdata[ii, 'C'] - C_target)
   D_err_pred <- abs(episimdata[ii, 'Deaths'] - D_target)

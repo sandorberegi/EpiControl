@@ -64,7 +64,14 @@
 #'
 #' @export
 
-Epi_MPC_run_wd <- function(episimdata, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, r_dir = 1, N = 1e6) {
+Epi_MPC_run_wd <- function(episimdata, episettings, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, r_dir = 1, N = 1e6) {
+
+  R_estimator <- episettings$R_estimator
+  sim_settings <- episettings$sim_settings
+
+  rf <- sim_settings$rf
+  r_trans_steep <- sim_settings$r_trans_steep
+  t0 <- sim_settings$t0
 
   R0 <- epi_par[pathogen,"R0"]
   gen_time <- epi_par[pathogen,"gen_time"]
@@ -101,7 +108,7 @@ Epi_MPC_run_wd <- function(episimdata, epi_par, noise_par, actions, pred_days, n
     #estimate the reproduction number from data
     R_coeff_tmp <- 0.0
 
-    R_est_res <- R_estim(episimdata, Ygen, ii, R_est_wind = R_est_wind, r_dir = r_dir)
+    R_est_res <- R_estimator(episimdata, Ygen, ii, R_est_wind = R_est_wind, r_dir = r_dir)
 
     episimdata[ii, 'Rest'] <- R_est_res$R_est
     R_coeff_tmp <- R_est_res$R_coeff_tmp
@@ -127,7 +134,7 @@ Epi_MPC_run_wd <- function(episimdata, epi_par, noise_par, actions, pred_days, n
       for (jj in 1:number_of_actions){
         Reward_ens <- replicate(n_ens ,0)
         for (kk in 1:n_ens){
-          Reward_ens[kk] <- Epi_pred_wd(episimdata, epi_par, noise_par, actions, pathogen, pred_days, r_dir, ii, jj, N)
+          Reward_ens[kk] <- Epi_pred_wd(episimdata, episettings, epi_par, noise_par, actions, pathogen, pred_days, r_dir, ii, jj, N)
         }
         exp_reward <- mean(Reward_ens)
         Rewards[jj] <- exp_reward
