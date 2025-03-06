@@ -7,6 +7,15 @@ test_that("reward_fun_wd calculates correct reward values", {
     Deaths = c(5, 10, 20)
   )
 
+  alpha <- sim_settings$alpha
+  alpha_d <- sim_settings$alpha_d
+  ovp <- sim_settings$ovp
+  dovp <- sim_settings$dovp
+  C_target <- sim_settings$C_target
+  C_target_pen <- sim_settings$C_target_pen
+  D_target <- sim_settings$D_target
+  D_target_pen <- sim_settings$D_target_pen
+
   # Define parameters
   alpha <- 2
   alpha_d <- 3
@@ -16,6 +25,20 @@ test_that("reward_fun_wd calculates correct reward values", {
   C_target_pen <- 150
   D_target <- 10
   D_target_pen <- 15
+
+  sim_settings <- list(
+    alpha = alpha,
+    alpha_d = alpha_d,
+    ovp = ovp,
+    dovp = dovp,
+    C_target = C_target,
+    C_target_pen = C_target_pen,
+    D_target = D_target,
+    D_target_pen = D_target_pen
+  )
+
+  episettings$sim_settings <- sim_settings
+
   actions <- data.frame(cost_of_NPI = c(5, 15, 25))
   ii <- 2
   jj <- 1
@@ -28,7 +51,7 @@ test_that("reward_fun_wd calculates correct reward values", {
   expected_rew <- -alpha * C_err_pred - over_pen - actions[jj, "cost_of_NPI"] - alpha_d * D_err_pred - over_pen_d # -0 - 0 - 5 - 0 - 0 = -5
 
   # Test function output
-  expect_equal(reward_fun_wd(episimdata, alpha, alpha_d, ovp, dovp, C_target, C_target_pen, D_target, D_target_pen, actions, ii, jj), expected_rew)
+  expect_equal(reward_fun_wd(episimdata, episettings, actions, ii, jj), expected_rew)
 
   # Test with a case exceeding the penalty threshold
   ii <- 3 # Using the third row (C = 200, Deaths = 20)
@@ -38,5 +61,5 @@ test_that("reward_fun_wd calculates correct reward values", {
   over_pen_d <- dovp # Over-penalty applied since Deaths (20) > D_target_pen (15)
   expected_rew <- -alpha * C_err_pred - over_pen - actions[jj, "cost_of_NPI"] - alpha_d * D_err_pred - over_pen_d # -200 - 10 - 5 - 30 - 15 = -245
 
-  expect_equal(reward_fun_wd(episimdata, alpha, alpha_d, ovp, dovp, C_target, C_target_pen, D_target, D_target_pen, actions, ii, jj), expected_rew)
+  expect_equal(reward_fun_wd(episimdata, episettings, actions, ii, jj), expected_rew)
 })

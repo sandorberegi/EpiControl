@@ -6,6 +6,7 @@
 \usage{
 Epi_MPC_run_est_D(
   episimdata,
+  episettings,
   epi_par,
   noise_par,
   actions,

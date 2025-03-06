@@ -4,24 +4,18 @@
 \alias{reward_fun_wd}
 \title{Calculate Reward function for Model Predictive Optimal Control}
 \usage{
-reward_fun_wd(
-  episimdata,
-  alpha,
-  alpha_d,
-  ovp,
-  dovp,
-  C_target,
-  C_target_pen,
-  D_target,
-  D_target_pen,
-  actions,
-  ii,
-  jj
-)
+reward_fun_wd(episimdata, episettings, actions, ii, jj)
 }
 \arguments{
 \item{episimdata}{A data frame containing epidemiological simulation data. The function expects
 specific columns: \code{"C"} for cases, \code{"Re"} for reproduction number, and \code{"Deaths"}.}
+
+\item{actions}{A data frame containing the costs of non-pharmaceutical interventions (NPIs).
+It expects a column named \code{"cost_of_NPI"}.}
+
+\item{ii}{An integer specifying the row index in \code{episimdata} to use for reward calculation.}
+
+\item{jj}{An integer specifying the row index in \code{actions} to use for cost retrieval.}
 
 \item{alpha}{A numeric value representing the weight applied to case error in the reward calculation.}
 
@@ -38,13 +32,6 @@ specific columns: \code{"C"} for cases, \code{"Re"} for reproduction number, and
 \item{D_target}{A numeric target for the number of deaths.}
 
 \item{D_target_pen}{A numeric threshold for the penalty on deaths.}
-
-\item{actions}{A data frame containing the costs of non-pharmaceutical interventions (NPIs).
-It expects a column named \code{"cost_of_NPI"}.}
-
-\item{ii}{An integer specifying the row index in \code{episimdata} to use for reward calculation.}
-
-\item{jj}{An integer specifying the row index in \code{actions} to use for cost retrieval.}
 }
 \value{
 A numeric value representing the calculated reward.

@@ -1,5 +1,29 @@
-#The main constructor function for the simulations
-#Epi_MPC_run_wd <- function(episimdata, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, r_dir = 1, N = 1e6) {
+#' Run Epidemiological Simulations with Control Mechanisms
+#'
+#' This function runs multiple ensemble simulations for epidemiological modelling,
+#' incorporating noise parameters, estimated reproduction numbers, and intervention actions.
+#' It supports parallel computation for efficiency.
+#'
+#' @param episim_data_ens A list of data frames containing initial epidemiological simulation data for each ensemble member.
+#' @param episettings A list of settings controlling the simulation, including:
+#'   - `sim_function`: Function to run a single epidemiological simulation.
+#'   - `reward_function`: Function to calculate rewards for the control process.
+#'   - `R_estimator`: Function to estimate the reproduction number.
+#'   - `noise_par`: Parameters related to noise in the simulation.
+#'   - `epi_par`: Epidemiological parameters.
+#'   - `actions`: Possible intervention actions.
+#'   - `sim_settings`: A list of simulation-specific settings. Please refer to the sim_function's documentation for the list of required parameters
+#'   - `parallel`: Logical, whether to run simulations in parallel.
+#'   - `cl`: Cluster object for parallel computation if `parallel = TRUE`.
+#'
+#' @return A list of simulation results for each ensemble member.
+#'
+#' @import pbapply
+#' @export
+#'
+#' @examples
+#' # Example usage (assuming `episim_data_ens` and `episettings` are predefined)
+#' results <- epicontrol(episim_data_ens, episettings)
 epicontrol <- function(episim_data_ens, episettings) {
   sim_function <- episettings$sim_function
   reward_function <- episettings$reward_function

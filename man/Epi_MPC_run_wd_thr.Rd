@@ -6,6 +6,7 @@
 \usage{
 Epi_MPC_run_wd_thr(
   episimdata,
+  episettings,
   epi_par,
   noise_par,
   actions,

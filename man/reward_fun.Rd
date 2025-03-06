@@ -4,20 +4,16 @@
 \alias{reward_fun}
 \title{Compute the Reward for Epidemic Simulation}
 \usage{
-reward_fun(
-  episimdata,
-  alpha,
-  ovp,
-  C_target,
-  C_target_pen,
-  R_target,
-  actions,
-  ii,
-  jj
-)
+reward_fun(episimdata, episettings, actions, ii, jj)
 }
 \arguments{
 \item{episimdata}{A data frame containing epidemic simulation data.}
+
+\item{actions}{A matrix containing intervention actions, with a column specifying the cost of non-pharmaceutical interventions (NPI).}
+
+\item{ii}{The current time step in the simulation.}
+
+\item{jj}{The index of the action scenario being evaluated.}
 
 \item{alpha}{A penalty factor for case prediction errors.}
 
@@ -28,12 +24,6 @@ reward_fun(
 \item{C_target_pen}{The case threshold above which the penalty `ovp` is applied.}
 
 \item{R_target}{The target effective reproduction number.}
-
-\item{actions}{A matrix containing intervention actions, with a column specifying the cost of non-pharmaceutical interventions (NPI).}
-
-\item{ii}{The current time step in the simulation.}
-
-\item{jj}{The index of the action scenario being evaluated.}
 }
 \value{
 A numeric value representing the reward for the given time step.

@@ -6,6 +6,7 @@
 \usage{
 Epi_pred(
   episimdata,
+  episettings,
   epi_par,
   noise_par,
   actions,

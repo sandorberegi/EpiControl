@@ -6,6 +6,7 @@
 \usage{
 Epi_MPC_run_V(
   episimdata,
+  episettings,
   epi_par,
   noise_par,
   actions,
@@ -18,6 +19,7 @@ Epi_MPC_run_V(
   susceptibles = 1,
   delay = 0,
   ur = 0,
+  r_dir = 0,
   N = 1e+06
 )
 }
