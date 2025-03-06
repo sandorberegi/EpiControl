@@ -70,7 +70,25 @@
 #'
 #' @export
 
-Epi_MPC_run_V <- function(episimdata, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, N = 1e6) {
+Epi_MPC_run_V <- function(episimdata, episettings, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, r_dir = 0, N = 1e6) {
+
+  R_estimator <- episettings$R_estimator
+  sim_settings <- episettings$sim_settings
+
+  rf <- sim_settings$rf
+  r_trans_steep <- sim_settings$r_trans_steep
+  t0 <- sim_settings$t0
+
+  v_max_rate <- sim_settings$v_max_rate
+  vac_scale <- sim_settings$vac_scale
+  vac_start <- sim_settings$vac_start
+
+  delta_scale <- sim_settings$delta_scale
+  delta_start <- sim_settings$delta_start
+
+  v_protection_delta <- sim_settings$v_protection_delta
+  v_protection_alpha <- sim_settings$v_protection_alpha
+
 
   R0 <- epi_par[pathogen,"R0"]
   gen_time <- epi_par[pathogen,"gen_time"]
@@ -100,7 +118,7 @@ Epi_MPC_run_V <- function(episimdata, epi_par, noise_par, actions, pred_days, n_
     #estimate the reproduction number from data
     R_coeff_tmp <- 0.0
 
-    R_est_res <- R_estim(episimdata, Ygen, ii, R_est_wind = R_est_wind, r_dir = r_dir)
+    R_est_res <- R_estimator(episimdata, Ygen, ii, R_est_wind = R_est_wind, r_dir = r_dir)
 
     episimdata[ii, 'Rest'] <- R_est_res$R_est
     R_coeff_tmp <- R_est_res$R_coeff_tmp
@@ -140,9 +158,9 @@ Epi_MPC_run_V <- function(episimdata, epi_par, noise_par, actions, pred_days, n_
     Rcoeff <- actions[episimdata[ii, 'policy'], 'R_coeff']
     episimdata[ii, 'R_coeff'] <- Rcoeff
 
-    vacc <- vac(ii, v_max_rate, 100, 370)
+    vacc <- vac(ii, v_max_rate, vac_scale, vac_start)
 
-    delta_ratio <- delta(ii, 40, 550)
+    delta_ratio <- delta(ii, delta_scale, delta_start)
 
     v_protection <- vacc * (delta_ratio * v_protection_delta + (1-delta_ratio) * v_protection_alpha)
 
@@ -161,7 +179,15 @@ Epi_MPC_run_V <- function(episimdata, epi_par, noise_par, actions, pred_days, n_
     episimdata[ii, 'Lambda'] <- sum(episimdata[(ii-1):1,'I']*Ygen[1:(ii-1)])
     episimdata[ii, 'Lambda_C'] <- sum(episimdata[(ii-1):1,'C']*Ygen[1:(ii-1)])
 
-    pois_input <- sum(episimdata[(ii-1):1,'I']*episimdata[ii:2,'Re']*Ygen[1:(ii-1)])
+    if (r_dir == 1) {
+      pois_input <- episimdata[ii,'Re']*sum(episimdata[(ii-1):1,'I']*Ygen[1:(ii-1)])
+    } else if ((r_dir == 2) && (ii > rf)) {
+      Rdir <- logistic_function((ii %% rf), episimdata[(ii-(ii %% rf)-1),'Re'], episimdata[(ii),'Re'], r_trans_steep, t0)
+      pois_input <- Rdir*sum(episimdata[(ii-1):1,'I']*Ygen[1:(ii-1)])
+      episimdata[ii, 'Rew'] <- Rdir
+    } else {
+      pois_input <- sum(episimdata[(ii-1):1,'I']*episimdata[ii:2,'Re']*Ygen[1:(ii-1)])
+    }
 
     episimdata[ii,'I'] <- rpois(1, pois_input)
     if (susceptibles == 1) {
