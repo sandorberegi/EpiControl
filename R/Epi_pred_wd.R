@@ -58,6 +58,12 @@
 
 Epi_pred_wd <- function(episimdata, episettings, epi_par, noise_par, actions, pathogen, pred_days, r_dir, kk, jj, N, ndays = nrow(episimdata), pred_susceptibles = 0, gamma = 0.95) {
 
+  sim_settings <- episettings$sim_settings
+
+  rf <- sim_settings$rf
+  t0 <- sim_settings$t0
+  r_trans_steep <- sim_settings$r_trans_steep
+
   reward_function <- episettings$reward_function
 
   R0 <- epi_par[pathogen,"R0"]
@@ -111,7 +117,7 @@ Epi_pred_wd <- function(episimdata, episettings, epi_par, noise_par, actions, pa
     if (pred_susceptibles == 1) {
       episimdata[ii, 'S'] <- episimdata[(ii-1), 'S'] - episimdata[ii,'C']
       if (episimdata[ii, 'S'] < 0) {
-        episimdata[ii, 'S'] = 0
+        episimdata[ii, 'S'] <- 0
       }
     }
 

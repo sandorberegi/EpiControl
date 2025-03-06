@@ -34,7 +34,15 @@
 #'
 #' @export
 
-Epi_pred_est_D <- function(episimdata, epi_par, noise_par, actions, pathogen, pred_days, r_dir, kk, jj, N, ndays = nrow(episimdata), pred_susceptibles = 0, gamma = 0.95) {
+Epi_pred_est_D <- function(episimdata, episettings, epi_par, noise_par, actions, pathogen, pred_days, r_dir, kk, jj, N, ndays = nrow(episimdata), pred_susceptibles = 0, gamma = 0.95) {
+
+  sim_settings <- episettings$sim_settings
+
+  rf <- sim_settings$rf
+  t0 <- sim_settings$t0
+  r_trans_steep <- sim_settings$r_trans_steep
+
+  reward_function <- episettings$reward_function
 
   R0 <- epi_par[pathogen,"R0"]
   gen_time <- epi_par[pathogen,"gen_time"]
@@ -88,7 +96,7 @@ Epi_pred_est_D <- function(episimdata, epi_par, noise_par, actions, pathogen, pr
     episimdata[ii,'Deaths'] <- rpois(1, pois_input)
 
     discounts[ii] <- discounts[ii-1] * gamma
-    rew[ii] <- reward_fun_wd(episimdata,alpha,alpha_d,ovp,dovp,C_target,C_target_pen,D_target,D_target_pen,actions,ii,jj)
+    rew[ii] <- reward_function(episimdata,episettings,actions,ii,jj)
   }
 
   Exp_rew <- sum(rew * discounts)

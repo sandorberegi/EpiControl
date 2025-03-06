@@ -106,7 +106,6 @@ Epi_MPC_run_wd <- function(episimdata, episettings, epi_par, noise_par, actions,
   for (ii in (start_day+1):ndays) {
 
     #estimate the reproduction number from data
-    R_coeff_tmp <- 0.0
 
     R_est_res <- R_estimator(episimdata, Ygen, ii, R_est_wind = R_est_wind, r_dir = r_dir)
 

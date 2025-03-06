@@ -17,10 +17,16 @@
 #' @details The function computes the absolute error between predicted and target cases (`C_err_pred`) and the deviation of the reproduction number (`R_err_pred`). If the predicted cases exceed `C_target_pen`, an additional penalty (`ovp`) is applied. The final reward incorporates these penalties along with the intervention cost.
 #'
 #' @export
-reward_fun <- function(episimdata,alpha,ovp,C_target,C_target_pen,R_target,actions,ii,jj) {
+reward_fun <- function(episimdata,episettings,actions,ii,jj) {
+
+  sim_settings <- episettings$sim_settings
+
+  alpha <- sim_settings$alpha
+  ovp <- sim_settings$ovp
+  C_target <- sim_settings$C_target
+  C_target_pen <- sim_settings$C_target_pen
 
   C_err_pred <- abs(episimdata[ii, 'C'] - C_target)
-  R_err_pred <- abs(episimdata[ii, 'Re'] - R_target)
   over_pen <- 0.0
 
   if (episimdata[ii, 'C'] > C_target_pen) {

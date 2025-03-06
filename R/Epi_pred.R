@@ -23,7 +23,15 @@
 #'
 #' @importFrom stats rpois dgamma
 #' @export
-Epi_pred <- function(episimdata, epi_par, noise_par, actions, pathogen, pred_days, kk, jj, N, ndays = nrow(episimdata), pred_susceptibles = 0, gamma = 0.95) {
+Epi_pred <- function(episimdata, episettings, epi_par, noise_par, actions, pathogen, pred_days, kk, jj, N, ndays = nrow(episimdata), pred_susceptibles = 0, gamma = 0.95) {
+
+  sim_settings <- episettings$sim_settings
+
+  rf <- sim_settings$rf
+  t0 <- sim_settings$t0
+  r_trans_steep <- sim_settings$r_trans_steep
+
+  reward_function <- episettings$reward_function
 
   R0 <- epi_par[pathogen,"R0"]
   gen_time <- epi_par[pathogen,"gen_time"]
@@ -67,7 +75,7 @@ Epi_pred <- function(episimdata, epi_par, noise_par, actions, pathogen, pred_day
     }
 
     discounts[ii] <- discounts[ii-1] * gamma
-    rew[ii] <- reward_fun(episimdata,alpha,ovp,C_target,C_target_pen,R_target,actions,ii,jj)
+    rew[ii] <- reward_function(episimdata,episettings,actions,ii,jj)
 
   }
 

@@ -77,6 +77,13 @@
 
 Epi_MPC_run_est_D <- function(episimdata, episettings, epi_par, noise_par, actions, pred_days, n_ens = 100, start_day = 1, ndays = nrow(episimdata), R_est_wind = 5, pathogen = 1, susceptibles = 1, delay = 0, ur = 0, r_dir = 1, N = 1e6) {
 
+  R_estimator <- episettings$R_estimator
+  sim_settings <- episettings$sim_settings
+
+  rf <- sim_settings$rf
+  r_trans_steep <- sim_settings$r_trans_steep
+  t0 <- sim_settings$t0
+
   R0 <- epi_par[pathogen,"R0"]
   gen_time <- epi_par[pathogen,"gen_time"]
   gen_time_var <- epi_par[pathogen,"gen_time_var"]
@@ -141,7 +148,7 @@ Epi_MPC_run_est_D <- function(episimdata, episettings, epi_par, noise_par, actio
       for (jj in 1:number_of_actions){
         Reward_ens <- replicate(n_ens ,0)
         for (kk in 1:n_ens){
-          Reward_ens[kk] <- Epi_pred_est_D(episimdata, epi_par, noise_par, actions, pathogen, pred_days, r_dir, ii, jj, N)
+          Reward_ens[kk] <- Epi_pred_est_D(episimdata, episettings, epi_par, noise_par, actions, pathogen, pred_days, r_dir, ii, jj, N)
         }
         exp_reward <- mean(Reward_ens)
         Rewards[jj] <- exp_reward

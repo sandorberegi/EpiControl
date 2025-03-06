@@ -153,7 +153,7 @@ Epi_MPC_run_V_no_delta <- function(episimdata, epi_par, noise_par, actions, pred
     episimdata[ii, "immunity"] <- v_protection
 
     if (susceptibles == 1) {
-      Ract <- Rcoeff * R0 * episimdata[ii-1,'S']/N
+      Ract <- Rcoeff * (R0 *(1-delta_ratio) + R0 * delta_ratio * delta_multiplier) * (1-v_protection) * episimdata[ii-1,'S']/N
     } else {
       Ract <- Rcoeff * (R0 *(1-delta_ratio) + R0 * delta_ratio * delta_multiplier) * (1-v_protection)
     }

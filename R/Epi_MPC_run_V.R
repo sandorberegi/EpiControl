@@ -85,6 +85,7 @@ Epi_MPC_run_V <- function(episimdata, episettings, epi_par, noise_par, actions, 
 
   delta_scale <- sim_settings$delta_scale
   delta_start <- sim_settings$delta_start
+  delta_multiplier <- sim_settings$delta_multiplier
 
   v_protection_delta <- sim_settings$v_protection_delta
   v_protection_alpha <- sim_settings$v_protection_alpha
@@ -144,7 +145,7 @@ Epi_MPC_run_V <- function(episimdata, episettings, epi_par, noise_par, actions, 
       for (jj in 1:number_of_actions){
         Reward_ens <- replicate(n_ens ,0)
         for (kk in 1:n_ens){
-          Reward_ens[kk] <- Epi_pred(episimdata, epi_par, noise_par, actions, pathogen, pred_days, ii, jj, N)
+          Reward_ens[kk] <- Epi_pred(episimdata, episettings, epi_par, noise_par, actions, pathogen, pred_days, ii, jj, N)
         }
         exp_reward <- mean(Reward_ens)
         Rewards[jj] <- exp_reward
