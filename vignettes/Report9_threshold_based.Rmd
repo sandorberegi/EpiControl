@@ -135,7 +135,7 @@ episettings <- list(
   parallel = TRUE
 )
 
-clusterExport(cl, varlist = ls(), envir = .GlobalEnv)
+episettings$cl <- cl
 
 results <- epicontrol(episim_data_ens, episettings)
 

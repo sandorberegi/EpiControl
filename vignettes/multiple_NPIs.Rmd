@@ -160,7 +160,7 @@ episettings <- list(
   parallel = TRUE
 )
 
-clusterExport(cl, varlist = ls(), envir = .GlobalEnv)
+episettings$cl <- cl
 
 results <- epicontrol(episim_data_ens, episettings)
 
@@ -198,7 +198,7 @@ combined_data <- combined_data %>%
 combined_data <- combined_data %>%
   arrange(sim_id, days, policy)
 
-policy_labels <- c("1" = "No restrictions", "2" = "SD1", "3" = "SD2", "4" = "SD3", "5" = "SD4", "6" = "SD5", "7" = "SD6", "8" = "SD7", "9" = "SD8")
+policy_labels <- c("1" = "No restrictions", "2" = "SD1", "3" = "SD2", "4" = "SD3", "5" = "SD4", "6" = "SD5", "7" = "SD6", "8" = "SD7")
 
 # find the day when herd immunity reached
 
@@ -223,8 +223,8 @@ ggplot(combined_data %>% filter(sim_id == 1)) +
   geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", size=0.25) +
   geom_vline(xintercept = index, linetype = "dashed", color = "black", size=0.25) +
   labs(x = "Days", y = "Reported cases and true infections", color = "Policy") +
-  #scale_color_manual(values = c("SD1" = "aquamarine", "SD2" = "darkgoldenrod1", "SD3" = "deeppink", "SD4" = "darkorchid1", "SD5" = "purple","SD6" = "red","SD7" = "darkred", "SD8" = "maroon",  "No restrictions" = "chartreuse3")) +
-  scale_color_manual(values = c("SD1" = "aquamarine", "SD2" = "darkgoldenrod1", "SD3" = "deeppink", "SD4" = "darkorchid1", "SD5" = "purple", "No restrictions" = "chartreuse3")) +
+  scale_color_manual(values = c("SD1" = "aquamarine", "SD2" = "darkgoldenrod1", "SD3" = "deeppink", "SD4" = "darkorchid1", "SD5" = "purple","SD6" = "red","SD7" = "darkred",  "No restrictions" = "chartreuse3")) +
+  #scale_color_manual(values = c("SD1" = "aquamarine", "SD2" = "darkgoldenrod1", "SD3" = "deeppink", "SD4" = "darkorchid1", "SD5" = "purple", "No restrictions" = "chartreuse3")) +
   guides(color = guide_legend(title = "Policy"))+
   ylim(0,10000)
 ```

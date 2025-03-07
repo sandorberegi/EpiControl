@@ -244,7 +244,7 @@ for (ii in 1:sim_ens) {
   episim_data_ens[[ii]]$sim_id <- rep(ii, ndays)
 }
 
-clusterExport(cl, varlist = ls(), envir = .GlobalEnv)
+episettings$cl <- cl
 
 results <- epicontrol(episim_data_ens, episettings)
 
