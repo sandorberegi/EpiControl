@@ -100,7 +100,6 @@ sim_settings <- list(
   sim_ens = 20L, #assembly size for full simulation
   rf = 21L, #days 14
   R_est_wind = 5L, #rf-2 #window for R estimation
-  susceptibles = 0,
   pred_days = 28L,
   r_trans_steep = 1.5,  # Growth rate
   r_trans_len = r_trans_len,  # Number of days for the transition
