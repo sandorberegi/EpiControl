@@ -77,8 +77,8 @@ sim_settings <- list(
 )
 
 episettings <- list(
-  sim_function = Epi_MPC_run_V,
-  reward_function = reward_fun,
+  sim_function = Epi_MPC_run_wd,
+  reward_function = reward_fun_wd,
   R_estimator = R_estim,
   noise_par = Noise_pars,
   epi_par = Epi_pars,
@@ -102,17 +102,38 @@ for (ii in 1:sim_settings$sim_ens) {
 }
 
 
-cores=detectCores()-1
-cl <- makeCluster(cores)
+# Ensure actions$cost_of_NPI is numeric
+Action_space$cost_of_NPI <- as.numeric(as.character(Action_space$cost_of_NPI))
 
-clusterExport(cl, varlist = ls(), envir = .GlobalEnv)
-clusterEvalQ(cl, library(EpiControl))
-clusterEvalQ(cl, library(VGAM))
+# Verify numeric parameters in sim_settings
+numeric_params <- c("alpha", "alpha_d", "ovp", "dovp", "C_target", "C_target_pen", "D_target", "D_target_pen", "pred_days", "sim_ens", "ndays", "N")
+sim_settings[numeric_params] <- lapply(sim_settings[numeric_params], as.numeric)
 
+# Don't forget to stop the cluster at the end
+on.exit(stopCluster(episettings$cl))
+
+# Create and export cluster
+Ncores <-  2  # Adjust cores as appropriate
+cl <- makeCluster(Ncores)
+
+# Export required functions and objects to cluster
+clusterExport(cl, ls())
+clusterExport(cl, c("reward_fun_wd", "Epi_pred_wd", "Epi_MPC_run_wd", "episim_data_ens", "episettings", "Action_space", "Epi_pars", "Noise_pars", "R_estim"))
+
+parallel::clusterEvalQ(cl, {
+  library(pbapply)
+  library(VGAM)
+})
+
+# Add the cluster object to your settings
+episettings$parallel <- TRUE
 episettings$cl <- cl
 
+# Run the epicontrol function
 results <- epicontrol(episim_data_ens, episettings)
 
-stopCluster(cl)
+# Stop the cluster after simulation
+parallel::stopCluster(cl)
+
 
 

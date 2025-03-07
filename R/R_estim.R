@@ -22,7 +22,7 @@
 #' @export
 
 R_estim <- function(episimdata, Ygen, ii, R_est_wind = 5, r_dir = 0){
-  if (ii-1 < R_est_wind) {
+  if ((ii-1) < R_est_wind) {
     R_est <- mean(episimdata[1:(ii-1), 'C'])/mean(episimdata[1:(ii-1), 'Lambda_C'])
     R_coeff_tmp <- sum(Ygen[1:(ii-1)] * episimdata[(ii-1):1, 'R_coeff'])/sum(Ygen[1:(ii-1)])
   } else {

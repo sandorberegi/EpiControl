@@ -33,10 +33,11 @@ epicontrol <- function(episim_data_ens, episettings) {
   actions <- episettings$actions
   sim_settings <- episettings$sim_settings
   parallel <- episettings$parallel
-  cl <- episettings$cl
 
   sim_ens <- sim_settings$sim_ens
   ndays <- sim_settings$ndays
+
+  print(sim_settings$susceptibles)
 
   pb <- txtProgressBar(min = 0, max = sim_ens, initial = 0, style = 3, width = 50, char = "=")
   for (ii in 1:sim_ens) {
@@ -47,11 +48,12 @@ epicontrol <- function(episim_data_ens, episettings) {
   if (parallel) {
     results <- pblapply(1:sim_ens, function(idx) {
       sim_function(episim_data_ens[[idx]], episettings, epi_par, noise_par, actions, pred_days = sim_settings$pred_days, n_ens = sim_settings$n_ens, start_day = sim_settings$start_day, ndays = sim_settings$ndays, R_est_wind = sim_settings$R_est_wind, pathogen = sim_settings$pathogen, susceptibles = sim_settings$susceptibles, delay = sim_settings$delay, ur = sim_settings$ur, r_dir = sim_settings$r_dir, N = sim_settings$N)
-    }, cl = cl)
+    }, cl = episettings$cl)
 
   }
 
   else {
+    #episim_data_ens <- sim_function(episim_data_ens, episettings, epi_par, noise_par, actions, pred_days = sim_settings$pred_days, n_ens = sim_settings$n_ens, start_day = sim_settings$start_day, ndays = sim_settings$ndays, R_est_wind = sim_settings$R_est_wind, pathogen = sim_settings$pathogen, susceptibles = sim_settings$susceptibles, delay = sim_settings$delay, ur = sim_settings$ur, r_dir = sim_settings$r_dir, N = sim_settings$N)
     for (jj in 1:sim_ens) {
       episim_data_ens[[jj]] <- sim_function(episim_data_ens[[jj]], episettings, epi_par, noise_par, actions, pred_days = sim_settings$pred_days, n_ens = sim_settings$n_ens, start_day = sim_settings$start_day, ndays = sim_settings$ndays, R_est_wind = sim_settings$R_est_wind, pathogen = sim_settings$pathogen, susceptibles = sim_settings$susceptibles, delay = sim_settings$delay, ur = sim_settings$ur, r_dir = sim_settings$r_dir, N = sim_settings$N)
       setTxtProgressBar(pb,jj)

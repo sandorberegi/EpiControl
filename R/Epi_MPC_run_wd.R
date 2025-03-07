@@ -133,7 +133,7 @@ Epi_MPC_run_wd <- function(episimdata, episettings, epi_par, noise_par, actions,
       for (jj in 1:number_of_actions){
         Reward_ens <- replicate(n_ens ,0)
         for (kk in 1:n_ens){
-          Reward_ens[kk] <- Epi_pred_wd(episimdata, episettings, epi_par, noise_par, actions, pathogen, pred_days, r_dir, ii, jj, N)
+          Reward_ens[kk] <- Epi_pred_wd(episimdata, episettings, epi_par, noise_par, actions, pathogen, pred_days, r_dir, ii, jj, N, ndays = ndays)
         }
         exp_reward <- mean(Reward_ens)
         Rewards[jj] <- exp_reward
