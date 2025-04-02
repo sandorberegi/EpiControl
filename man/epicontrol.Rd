@@ -2,7 +2,7 @@
 % Please edit documentation in R/epicontrol.R
 \name{epicontrol}
 \alias{epicontrol}
-\title{Run Epidemiological Simulations with Control Mechanisms}
+\title{Run Epidemiological Simulations with Control}
 \usage{
 epicontrol(episim_data_ens, episettings)
 }
@@ -27,8 +27,4 @@ A list of simulation results for each ensemble member.
 This function runs multiple ensemble simulations for epidemiological modelling,
 incorporating noise parameters, estimated reproduction numbers, and intervention actions.
 It supports parallel computation for efficiency.
-}
-\examples{
-# Example usage (assuming `episim_data_ens` and `episettings` are predefined)
-results <- epicontrol(episim_data_ens, episettings)
 }

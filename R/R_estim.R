@@ -13,12 +13,6 @@
 #'   - `R_est`: Estimated reproduction number.
 #'   - `R_coeff_tmp`: Estimated reduction coefficient for `R0`.
 #'
-#' @examples
-#' # Example usage with dummy data
-#' episimdata <- data.frame(C = rpois(10, 5), Lambda_C = rpois(10, 4), R_coeff = runif(10, 0.8, 1.2))
-#' Ygen <- rpois(10, 3)
-#' R_estim(episimdata, Ygen, ii = 6)
-#'
 #' @export
 
 R_estim <- function(episimdata, Ygen, ii, R_est_wind = 5, r_dir = 0){

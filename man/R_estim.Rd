@@ -26,10 +26,3 @@ A list containing:
 This function estimates the reproduction number (`R_est`) and an associated coefficient (`R_coeff_tmp`)
 based on epidemic ata.
 }
-\examples{
-# Example usage with dummy data
-episimdata <- data.frame(C = rpois(10, 5), Lambda_C = rpois(10, 4), R_coeff = runif(10, 0.8, 1.2))
-Ygen <- rpois(10, 3)
-R_estim(episimdata, Ygen, ii = 6)
-
-}

@@ -1,4 +1,4 @@
-#' Run Epidemiological Simulations with Control Mechanisms
+#' Run Epidemiological Simulations with Control
 #'
 #' This function runs multiple ensemble simulations for epidemiological modelling,
 #' incorporating noise parameters, estimated reproduction numbers, and intervention actions.
@@ -20,10 +20,7 @@
 #'
 #' @import pbapply
 #' @export
-#'
-#' @examples
-#' # Example usage (assuming `episim_data_ens` and `episettings` are predefined)
-#' results <- epicontrol(episim_data_ens, episettings)
+
 epicontrol <- function(episim_data_ens, episettings) {
   sim_function <- episettings$sim_function
   reward_function <- episettings$reward_function
