@@ -36,11 +36,16 @@ library(dplyr)
 library(ggplot2)
 ```
 
+```{r fix random seed}
+set.seed(1)
+```
 Initialize the cluster for parallel computing:
 
 ```{r parallel-setup}
 cores <- detectCores() - 1
 cl <- makeCluster(cores)
+
+clusterSetRNGStream(cl, iseed = 20250501)
 ```
 
 ### Epidemiological and Noise Parameters
