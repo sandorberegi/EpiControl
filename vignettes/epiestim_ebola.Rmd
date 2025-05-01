@@ -1,5 +1,5 @@
 ---
-title: "epiestim_ebola"
+title: "Ebola example - using EpiEstim for estimation"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{epiestim_ebola}
@@ -11,7 +11,8 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  warning = FALSE
+  warning = FALSE,
+  message = FALSE
 )
 ```
 
@@ -28,6 +29,11 @@ library(readr)
 library(dplyr)
 library(tidyr)
 ```
+
+### Data preprocessing
+
+We will first load the dataset containing cases of West African Ebola.
+Garske, T. et al. Heterogeneities in the case fatality ratio in the West African Ebola outbreak 2013–2016. Philos. Trans. R. Soc. Lond. B Biol. Sci. 372, 20160308 2017. [link](https://royalsocietypublishing.org/doi/10.1098/rstb.2016.0308)
 
 ```{r load-data}
 # Read data
@@ -60,11 +66,9 @@ date_counts_i_filled <- all_dates %>%
   left_join(date_counts_i, by = "date_reported") %>%
   replace_na(list(count = 0))
 
-# Print the complete frequency table
-print(date_counts_filled)
-print(date_counts_i_filled)
-
 date_counts_filled$count_i <- date_counts_i_filled$count
+
+# Visualise daily epidemic cases curves (when reported and as occurence inferred)
 
 ggplot(date_counts_filled, aes(x = date_reported, y = count)) +
   geom_line(color = "blue") +  # Line plot for cases over time
@@ -73,9 +77,16 @@ ggplot(date_counts_filled, aes(x = date_reported, y = count)) +
        x = "Date",
        y = "Number of Cases") +
   theme_minimal()
+```
 
+Let's estimate R from this data using EpiEstim.
+
+```{r epiestim}
 cases_v <- date_counts_filled$count_i
 
+ndays <- 633#epidemic length #simulation length
+
+# Assumed generation time distribution
 Ygen <- dgamma(1:ndays, 15.0/2.1, 1/2.1)
 Ygen <- Ygen/sum(Ygen)
 Ygen <- c(0, Ygen)
@@ -86,15 +97,22 @@ res <- estimate_R(incid = cases_v,
 
 
 plot(res)
-
-real_days <- 210L
 ```
-Initialize the cluster for parallel computing:
+
+### Simulation setup
+
+We simulate a controlled epidemic starting on day 210 after the first case. We will set the control target to 50 cases/day. We will model susceptible depletion by infected individuals getting removed from the susceptible group. We expect the control to balance cases around the target until herd immunity is reached and then no further interventions applied.
+
+Initialise the cluster for parallel computing:
 
 ```{r parallel-setup}
 cores <- detectCores() - 1
 cl <- makeCluster(cores)
 ```
+
+### Define the epidemic ans noise parameters
+
+We will use pathogen = 2 corresponding to Ebola Virus Disease.
 
 ```{r define-parameters}
 Epi_pars <- data.frame(
@@ -117,7 +135,7 @@ Noise_pars <- data.frame(
 
 ### Action Space for Policy Interventions
 
-Define non-pharmaceutical interventions: We have 2 actions, introducing a "lockdown" and no interventions.
+Define non-pharmaceutical interventions: We have 3 actions, introducing a lockdown, social distancing and no interventions.
 
 ```{r action-space}
 # Setting-up the control (using non-pharmaceutical interventions)
@@ -129,10 +147,15 @@ Action_space <- data.frame (
 )
 ```
 
+### Simulation parameters
+
+We set the simulation parameters, targets, R estimation window etc. below.
+We do not account for vaccination or new variants, therefore we set v_max_rate = 0 and delta_multiplier = 1.0.
+
 ```{r simulation-setup}
-ndays <- 633#epidemic length #simulation length
-N <- 1e5 # population size
+N <- 1e6 # population size
 I0 <- 10 # initial infections
+real_days <- 210L #we start the simulation from data here
 
 #Simulation parameters
 n_ens <- 20L #MC assembly size for 4
@@ -173,24 +196,23 @@ sim_settings <- list(
   r_dir = 2,
   LD_on = 14, #on threshold
   LD_off = 7, #off threshold
-  v_max_rate = 0.,
+  v_max_rate = 0,
   vac_scale = 100,
   vac_start = 370,
   delta_scale = 40,
   delta_start = 550,
-  delta_multiplier = 1.75,
+  delta_multiplier = 1.0,
   v_protection_delta = (58+85)/200,
   v_protection_alpha = 0.83
 )
 
-# Original episim_data
+# Construct our simulation dataframe:
 column_names <- c("days", "sim_id", "I", "Lambda", "C", "Lambda_C", "S", "Re", "Rew", "Rest", "R0est", "policy", "R_coeff", "Real_C", "vaccination_rate", "delta_prevalence","immunity")
 
 # Create an empty data frame with specified column names
 empty_df <- data.frame(matrix(ncol = length(column_names), nrow = 0))
 colnames(empty_df) <- column_names
 
-# Print the structure of the empty data frame
 # Create a zero matrix with 10 rows
 zero_matrix <- matrix(0, nrow = ndays, ncol = length(column_names))
 colnames(zero_matrix) <- column_names
@@ -217,7 +239,7 @@ gen_time_var <- 2.1
 
 R_est_wind <- 5  # Define your window size
 
-Ygen <- dgamma(1:nrow(uk_data), gen_time/gen_time_var, 1/gen_time_var)
+Ygen <- dgamma(1:nrow(ebola_data), gen_time/gen_time_var, 1/gen_time_var)
 Ygen <- Ygen/sum(Ygen)
 
 # Estimate R
@@ -249,6 +271,10 @@ for (ii in 1:sim_ens) {
 
 ```
 
+### Running the simulation
+
+Passing the simulation setup to epicontrol and running the simulation.
+
 ```{r run-simulation}
 
 episettings <- list(
@@ -275,6 +301,8 @@ results <- epicontrol(episim_data_ens, episettings)
 episim_data_ens <- results
 stopCluster(cl)
 
+## For non-parallel runs:
+
 #for (jj in 1:sim_ens) {
 #  episim_data_ens[[jj]] <- Epi_MPC_run_wd(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, r_dir = 2, N = N)
 #  setTxtProgressBar(pb,jj)
@@ -287,7 +315,7 @@ combined_data <- do.call(rbind, episim_data_ens)
 
 ### Plotting results
 
-```{r plot results}
+```{r plot-results}
 
 combined_data <- combined_data %>%
   group_by(sim_id, policy) %>%
@@ -300,16 +328,9 @@ combined_data <- combined_data %>%
 
 policy_labels <- c("0" = "Historical data", "1" = "No intervention", "2" = "Social distancing", "3" = "Lockdown")
 
-# Print the result
-if (!is.na(switch_day)) {
-  cat("The switch from negative to positive occurs on day:", switch_day, "\n")
-} else {
-  cat("No switch from negative to positive was found.\n")
-}
-
 combined_data$policy[combined_data$days < real_days] <- 0
 
-combined_data$date <- as.Date("2020-01-01") + (combined_data$days - 1)
+combined_data$date <- date_counts_i_filled[1, 'date_reported']  + (combined_data$days - 1)
 # Assuming combined_data has a 'date' column
 ggplot(combined_data %>% filter(sim_id == 1)) +
   geom_line(data = subset(combined_data, sim_id != 1),
@@ -317,7 +338,7 @@ ggplot(combined_data %>% filter(sim_id == 1)) +
   geom_line(aes(x = date, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
   geom_line(aes(x = date, y = Real_C, color = "blue", group = 1), alpha = 1.0, size = 0.25) +
   geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", size = 0.25) +
-  geom_vline(xintercept = as.Date("2020-01-01") + (real_days - 1),
+  geom_vline(xintercept = date_counts_i_filled[1, 'date_reported'] + (real_days - 1),
              linetype = "dashed", color = "black", size = 0.25) +
   labs(x = "Date", y = "Reported cases", color = "Policy") +
   scale_color_manual(values = c("No intervention" = "chartreuse3",
@@ -326,4 +347,16 @@ ggplot(combined_data %>% filter(sim_id == 1)) +
                                 "Historical data" = "black")) +
   guides(color = guide_legend(title = "Policy"))
 ```
-
+```{r plot-R}
+ggplot(combined_data %>% filter(sim_id == 1)) +
+  geom_line(aes(x = date, y = Re, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
+  scale_color_manual(values = c("No intervention" = "chartreuse3",
+                                "Social distancing" = "darkorchid1",
+                                "Lockdown" = "red",
+                                "Historical data" = "black")) +
+  labs(x = "Date", y = "Re", color = "Policy") +
+  guides(color = guide_legend(title = "Policy")) +
+  geom_vline(xintercept = date_counts_i_filled[1, 'date_reported'] + (real_days - 1),
+             linetype = "dashed", color = "black", size = 0.25) +
+  theme_minimal()
+```

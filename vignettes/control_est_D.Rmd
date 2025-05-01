@@ -180,7 +180,7 @@ combined_data <- do.call(rbind, episim_data_ens)
 
 ### Plotting results
 
-```{r plot results}
+```{r plot-results}
 
 combined_data <- combined_data %>%
   group_by(sim_id, policy) %>%
