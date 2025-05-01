@@ -22,7 +22,6 @@ jobs:
         with:
           extra-packages: any::pkgdown
 
-
       - name: Build and deploy site
         uses: r-lib/actions/pkgdown@v2
         with:
