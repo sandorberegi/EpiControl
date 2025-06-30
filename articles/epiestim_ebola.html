@@ -6,12 +6,12 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <meta name="description" content="EpiControl">
-<title>Ebola example - using EpiEstim for estimation • EpiControl</title>
+<title>Ebola example - using EpiEstim for R estimation • EpiControl</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.2.2/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.2.2/bootstrap.bundle.min.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/v4-shims.min.css" integrity="sha256-wZjR52fzng1pJHwx4aV2AO3yyTOXrcDW7jBpJtTwVxw=" crossorigin="anonymous">
-<!-- bootstrap-toc --><script src="https://cdn.jsdelivr.net/gh/afeld/bootstrap-toc@v1.0.1/dist/bootstrap-toc.min.js" integrity="sha256-4veVQbu7//Lk5TSmc7YV48MxtMy98e26cf5MrgZYnwo=" crossorigin="anonymous"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js" integrity="sha512-7O5pXpc0oCRrxk8RUfDYFgn0nO1t+jLuIOQdOMRp4APB7uZ4vSjspzp5y6YDtDs4VzUSTbWzBFZ/LKJhnyFOKw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script><!-- search --><script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.6/fuse.js" integrity="sha512-zv6Ywkjyktsohkbp9bb45V6tEMoWhzFzXis+LrMehmJZZSys19Yxf1dopHx7WzIKxr5tK2dVcYmaCk2uqdjF4A==" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/autocomplete.js/0.38.0/autocomplete.jquery.min.js" integrity="sha512-GU9ayf+66Xx2TmpxqJpliWbT5PiGYxpaG8rfnBEk1LL8l1KGkRShhngwdXK1UgqhAzWpZHSiYPc09/NwDQIGyg==" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mark.js/8.11.1/mark.min.js" integrity="sha512-5CYOlHXGh6QpOFA/TeTylKLWfB3ftPsde7AnmhuitiTX4K5SqCLBeKro6sPS8ilsz1Q4NRx3v8Ko2IBiszzdww==" crossorigin="anonymous"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Ebola example - using EpiEstim for estimation">
+<!-- bootstrap-toc --><script src="https://cdn.jsdelivr.net/gh/afeld/bootstrap-toc@v1.0.1/dist/bootstrap-toc.min.js" integrity="sha256-4veVQbu7//Lk5TSmc7YV48MxtMy98e26cf5MrgZYnwo=" crossorigin="anonymous"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js" integrity="sha512-7O5pXpc0oCRrxk8RUfDYFgn0nO1t+jLuIOQdOMRp4APB7uZ4vSjspzp5y6YDtDs4VzUSTbWzBFZ/LKJhnyFOKw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script><!-- search --><script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.6/fuse.js" integrity="sha512-zv6Ywkjyktsohkbp9bb45V6tEMoWhzFzXis+LrMehmJZZSys19Yxf1dopHx7WzIKxr5tK2dVcYmaCk2uqdjF4A==" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/autocomplete.js/0.38.0/autocomplete.jquery.min.js" integrity="sha512-GU9ayf+66Xx2TmpxqJpliWbT5PiGYxpaG8rfnBEk1LL8l1KGkRShhngwdXK1UgqhAzWpZHSiYPc09/NwDQIGyg==" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mark.js/8.11.1/mark.min.js" integrity="sha512-5CYOlHXGh6QpOFA/TeTylKLWfB3ftPsde7AnmhuitiTX4K5SqCLBeKro6sPS8ilsz1Q4NRx3v8Ko2IBiszzdww==" crossorigin="anonymous"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Ebola example - using EpiEstim for R estimation">
 <meta property="og:description" content="EpiControl">
 <!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
 <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
@@ -41,12 +41,12 @@
 <li class="active nav-item dropdown">
   <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false" aria-haspopup="true" id="dropdown-articles">Articles</a>
   <div class="dropdown-menu" aria-labelledby="dropdown-articles">
-    <a class="dropdown-item" href="../articles/control_est_D.html">MPC with death data only</a>
-    <a class="dropdown-item" href="../articles/epiestim_ebola.html">Ebola example - using EpiEstim for estimation</a>
-    <a class="dropdown-item" href="../articles/multiple_NPIs.html">multiple_NPIs</a>
-    <a class="dropdown-item" href="../articles/Report9_MPC.html">Simulating Epidemic Dynamics with Policy Interventions</a>
-    <a class="dropdown-item" href="../articles/Report9_threshold_based.html">Report9_threshold_based</a>
-    <a class="dropdown-item" href="../articles/vaccine_variants_MPC.html">Vaccination and new variant</a>
+    <a class="dropdown-item" href="../articles/control_est_D.html">Epidemic control based-on deaths</a>
+    <a class="dropdown-item" href="../articles/epiestim_ebola.html">Ebola example - using EpiEstim for R estimation</a>
+    <a class="dropdown-item" href="../articles/multiple_NPIs.html">COVID-19 control with a larger NPI space</a>
+    <a class="dropdown-item" href="../articles/Report9_MPC.html">Optimal control of ICU cases for COVID-19</a>
+    <a class="dropdown-item" href="../articles/Report9_threshold_based.html">Threshold-based control of ICU cases for COVID-19</a>
+    <a class="dropdown-item" href="../articles/vaccine_variants_MPC.html">COVID-19 Vaccination and new variant</a>
   </div>
 </li>
       </ul>
@@ -66,7 +66,7 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-      <img src="" class="logo" alt=""><h1>Ebola example - using EpiEstim for estimation</h1>
+      <img src="" class="logo" alt=""><h1>Ebola example - using EpiEstim for R estimation</h1>
             
       
       
@@ -75,20 +75,27 @@
 
     
     
+<div class="section level2">
+<h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
+</h2>
+<p>This vignette demonstrates model predictive optimal control of Ebola
+Virus Disease cases in West Africa. We initialise the simulation from
+real data and roughly re-create the dynamics of the outbreak between
+2013–2016. We will also demonstrate integration of EpiControl with
+EpiEstim.</p>
+<p>Load the required libraries:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://sandorberegi.github.io/EpiControl/">EpiControl</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://www.stat.auckland.ac.nz/~yee/VGAM/" class="external-link">VGAM</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">parallel</span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/psolymos/pbapply" class="external-link">pbapply</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://zoo.R-Forge.R-project.org/" class="external-link">zoo</a></span><span class="op">)</span>  <span class="co"># For rolling sum operations</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://zoo.R-Forge.R-project.org/" class="external-link">zoo</a></span><span class="op">)</span> </span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/mrc-ide/EpiEstim" class="external-link">EpiEstim</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://readr.tidyverse.org" class="external-link">readr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tidyr.tidyverse.org" class="external-link">tidyr</a></span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="data-preprocessing">Data preprocessing<a class="anchor" aria-label="anchor" href="#data-preprocessing"></a>
 </h3>
@@ -96,7 +103,7 @@
 Ebola. Garske, T. et al. Heterogeneities in the case fatality ratio in
 the West African Ebola outbreak 2013–2016. Philos. Trans. R. Soc. Lond.
 B Biol. Sci. 372, 20160308 2017. <a href="https://royalsocietypublishing.org/doi/10.1098/rstb.2016.0308" class="external-link">link</a></p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Read data</span></span>
 <span><span class="va">ebola_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_csv</a></span><span class="op">(</span><span class="st">"ebola_data/rstb20160308_si_001.csv"</span><span class="op">)</span></span>
 <span></span>
@@ -113,8 +120,8 @@ B Biol. Sci. 372, 20160308 2017. <a href="https://royalsocietypublishing.org/doi
 <span><span class="va">date_counts</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">date_reported</span>, useNA <span class="op">=</span> <span class="st">"no"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">date_counts_i</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">date_inferred</span>, useNA <span class="op">=</span> <span class="st">"no"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">date_counts</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"date_reported"</span>, <span class="st">"count"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">date_counts_i</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"date_reported"</span>, <span class="st">"count"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">date_counts</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"date_reported"</span>, <span class="st">"count"</span><span class="op">)</span> <span class="co">#actual case-count</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">date_counts_i</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"date_reported"</span>, <span class="st">"count"</span><span class="op">)</span> <span class="co">#inferred cases</span></span>
 <span><span class="va">date_counts</span><span class="op">$</span><span class="va">date_reported</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/zoo/man/yearmon.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="va">date_counts</span><span class="op">$</span><span class="va">date_reported</span><span class="op">)</span></span>
 <span><span class="va">date_counts_i</span><span class="op">$</span><span class="va">date_reported</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/zoo/man/yearmon.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="va">date_counts_i</span><span class="op">$</span><span class="va">date_reported</span><span class="op">)</span><span class="co"># Convert back to Date format</span></span>
 <span></span>
@@ -140,7 +147,7 @@ B Biol. Sci. 372, 20160308 2017. <a href="https://royalsocietypublishing.org/doi
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p><img src="epiestim_ebola_files/figure-html/load-data-1.png" width="700"></p>
 <p>Let’s estimate R from this data using EpiEstim.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cases_v</span> <span class="op">&lt;-</span> <span class="va">date_counts_filled</span><span class="op">$</span><span class="va">count_i</span></span>
 <span></span>
 <span><span class="va">ndays</span> <span class="op">&lt;-</span> <span class="fl">833</span><span class="co">#epidemic length #simulation length</span></span>
@@ -167,8 +174,9 @@ susceptible depletion by infected individuals getting removed from the
 susceptible group. We expect the control to balance cases around the
 target until herd immunity is reached and then no further interventions
 applied.</p>
-<p>Initialise the cluster for parallel computing:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<p>Initialise the cluster for parallel computing and fix random seed for
+reproducibility:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cores</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/parallel/detectCores.html" class="external-link">detectCores</a></span><span class="op">(</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1</span></span>
 <span><span class="va">cl</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/parallel/makeCluster.html" class="external-link">makeCluster</a></span><span class="op">(</span><span class="va">cores</span><span class="op">)</span></span>
 <span></span>
@@ -178,7 +186,7 @@ applied.</p>
 <h3 id="define-the-epidemic-ans-noise-parameters">Define the epidemic ans noise parameters<a class="anchor" aria-label="anchor" href="#define-the-epidemic-ans-noise-parameters"></a>
 </h3>
 <p>We will use pathogen = 2 corresponding to Ebola Virus Disease.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">Epi_pars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  Pathogen <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"COVID-19"</span>, <span class="st">"Ebola"</span><span class="op">)</span>,</span>
 <span>  R0 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.305201</span><span class="op">/</span><span class="fl">0.5</span>, <span class="fl">2.5</span><span class="op">)</span>,</span>
@@ -201,7 +209,7 @@ applied.</p>
 </h3>
 <p>Define non-pharmaceutical interventions: We have 3 actions,
 introducing a lockdown, social distancing and no interventions.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Setting-up the control (using non-pharmaceutical interventions)</span></span>
 <span><span class="va">Action_space</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span> <span class="op">(</span></span>
 <span>  NPI <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"No restrictions"</span>, <span class="st">"Social distancing"</span>, <span class="st">"Lockdown"</span><span class="op">)</span>,</span>
@@ -215,8 +223,9 @@ introducing a lockdown, social distancing and no interventions.</p>
 </h3>
 <p>We set the simulation parameters, targets, R estimation window etc.
 below. We do not account for vaccination or new variants, therefore we
-set v_max_rate = 0 and delta_multiplier = 1.0.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+set v_max_rate = 0 and delta_multiplier = 1.0. Our target is to keep
+cases at 50 cases/day.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">N</span> <span class="op">&lt;-</span> <span class="fl">1e6</span> <span class="co"># population size</span></span>
 <span><span class="va">I0</span> <span class="op">&lt;-</span> <span class="fl">10</span> <span class="co"># initial infections</span></span>
 <span><span class="va">real_days</span> <span class="op">&lt;-</span> <span class="fl">210L</span> <span class="co">#we start the simulation from data here</span></span>
@@ -245,13 +254,13 @@ set v_max_rate = 0 and delta_multiplier = 1.0.</p>
 <span>  ovp <span class="op">=</span> <span class="fl">5.0</span>, <span class="co">#overshoot penalty</span></span>
 <span>  dovp <span class="op">=</span> <span class="fl">0</span><span class="op">*</span><span class="fl">10.0</span>, <span class="co">#death overshoot penalty</span></span>
 <span>  gamma <span class="op">=</span> <span class="fl">0.95</span>, <span class="co">#discounting factor</span></span>
-<span>  n_ens <span class="op">=</span> <span class="va">n_ens</span>, <span class="co">#MC assembly size for 4</span></span>
+<span>  n_ens <span class="op">=</span> <span class="va">n_ens</span>, </span>
 <span>  sim_ens <span class="op">=</span> <span class="va">sim_ens</span>, <span class="co">#assembly size for full simulation</span></span>
 <span>  rf <span class="op">=</span> <span class="fl">14L</span>, <span class="co">#days 14</span></span>
-<span>  R_est_wind <span class="op">=</span> <span class="fl">5L</span>, <span class="co">#rf-2 #window for R estimation</span></span>
+<span>  R_est_wind <span class="op">=</span> <span class="fl">5L</span>,  <span class="co">#window for R estimation</span></span>
 <span>  pred_days <span class="op">=</span> <span class="fl">21L</span>,</span>
-<span>  r_trans_steep <span class="op">=</span> <span class="fl">1.5</span>,  <span class="co"># Growth rate</span></span>
-<span>  r_trans_len <span class="op">=</span> <span class="va">r_trans_len</span>,  <span class="co"># Number of days for the transition</span></span>
+<span>  r_trans_steep <span class="op">=</span> <span class="fl">1.5</span>,  <span class="co"># Transition steepness</span></span>
+<span>  r_trans_len <span class="op">=</span> <span class="va">r_trans_len</span>,  <span class="co"># Number of days for the transition between policies</span></span>
 <span>  t0 <span class="op">=</span> <span class="va">r_trans_len</span>  <span class="op">/</span> <span class="fl">2</span>, <span class="co"># Midpoint of the transition</span></span>
 <span>  pathogen <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  susceptibles <span class="op">=</span> <span class="fl">1</span>,</span>
@@ -338,7 +347,7 @@ set v_max_rate = 0 and delta_multiplier = 1.0.</p>
 </h3>
 <p>Passing the simulation setup to epicontrol and running the
 simulation.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="va">episettings</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  sim_function <span class="op">=</span> <span class="va">Epi_MPC_run_V</span>,</span>
@@ -380,7 +389,7 @@ simulation.</p>
 <div class="section level3">
 <h3 id="plotting-results">Plotting results<a class="anchor" aria-label="anchor" href="#plotting-results"></a>
 </h3>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="va">combined_data</span> <span class="op">&lt;-</span> <span class="va">combined_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">sim_id</span>, <span class="va">policy</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
@@ -412,7 +421,7 @@ simulation.</p>
 <span>                                <span class="st">"Historical data"</span> <span class="op">=</span> <span class="st">"black"</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/guides.html" class="external-link">guides</a></span><span class="op">(</span>color <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/guide_legend.html" class="external-link">guide_legend</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Policy"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><img src="epiestim_ebola_files/figure-html/plot-results-1.png" width="700"></p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">combined_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">sim_id</span> <span class="op">==</span> <span class="fl">2</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">date</span>, y <span class="op">=</span> <span class="va">Re</span>, color <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">policy</span>, labels <span class="op">=</span> <span class="va">policy_labels</span><span class="op">)</span>, group <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>, alpha <span class="op">=</span> <span class="fl">1.0</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_manual.html" class="external-link">scale_color_manual</a></span><span class="op">(</span>values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"No intervention"</span> <span class="op">=</span> <span class="st">"chartreuse3"</span>,</span>
@@ -425,6 +434,7 @@ simulation.</p>
 <span>             linetype <span class="op">=</span> <span class="st">"dashed"</span>, color <span class="op">=</span> <span class="st">"black"</span>, size <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p><img src="epiestim_ebola_files/figure-html/plot-R-1.png" width="700"></p>
+</div>
 </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
     </nav></aside>
