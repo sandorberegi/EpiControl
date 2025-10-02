@@ -1,15 +1,13 @@
-pandoc: '3.2'
+pandoc: 3.6.3
 pkgdown: 2.0.9
 pkgdown_sha: ~
 articles:
   control_est_D: control_est_D.html
   epiestim_ebola: epiestim_ebola.html
+  hyperparameter_opt: hyperparameter_opt.html
   multiple_NPIs: multiple_NPIs.html
   Report9_MPC: Report9_MPC.html
   Report9_threshold_based: Report9_threshold_based.html
   vaccine_variants_MPC: vaccine_variants_MPC.html
-last_built: 2025-06-30T22:54Z
-urls:
-  reference: https://sandorberegi.github.io/EpiControl/reference
-  article: https://sandorberegi.github.io/EpiControl/articles
+last_built: 2025-10-02T15:16Z
 
