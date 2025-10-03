@@ -86,31 +86,138 @@ for COVID-19 based on death data only</p>
 </h3>
 <p>Load the required libraries and initialise the simulation
 environment.</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://sandorberegi.github.io/EpiControl/" class="external-link">EpiControl</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://www.stat.auckland.ac.nz/~yee/VGAM/" class="external-link">VGAM</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">parallel</span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/psolymos/pbapply" class="external-link">pbapply</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://zoo.R-Forge.R-project.org/" class="external-link">zoo</a></span><span class="op">)</span> </span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span></code></pre></div>
 <p>Initialise the cluster for parallel computing and fix random seed for
 reproducibility:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">cores</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/parallel/detectCores.html" class="external-link">detectCores</a></span><span class="op">(</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1</span></span>
+<span><span class="va">cl</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/parallel/makeCluster.html" class="external-link">makeCluster</a></span><span class="op">(</span><span class="va">cores</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/parallel/RngStream.html" class="external-link">clusterSetRNGStream</a></span><span class="op">(</span><span class="va">cl</span>, iseed <span class="op">=</span> <span class="fl">20250501</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="epidemiological-and-noise-parameters">Epidemiological and Noise Parameters<a class="anchor" aria-label="anchor" href="#epidemiological-and-noise-parameters"></a>
 </h3>
 <p>Define parameters for pathogens and noise: Can include different
 pathogens, in this case we consider COVID-19 and Ebola virus.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">Epi_pars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  Pathogen <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"COVID-19"</span>, <span class="st">"Ebola"</span><span class="op">)</span>,</span>
+<span>  R0 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2.2</span>, <span class="fl">2.5</span><span class="op">)</span>, <span class="co">#Basic reproduction number</span></span>
+<span>  gen_time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">6.5</span>, <span class="fl">15.0</span><span class="op">)</span>, <span class="co">#mean gen time</span></span>
+<span>  gen_time_var <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2.1</span>, <span class="fl">2.1</span><span class="op">)</span>, <span class="co">#gen time variance</span></span>
+<span>  CFR <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.0132</span>, <span class="fl">0.5</span><span class="op">)</span>, <span class="co"># Case-fatality rate</span></span>
+<span>  mortality_mean <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10.0</span>, <span class="fl">10.0</span><span class="op">)</span>, <span class="co">#Mean time to death</span></span>
+<span>  mortality_var <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.1</span>, <span class="fl">1.1</span><span class="op">)</span> <span class="co">#Time to death variance</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">Noise_pars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span> <span class="op">(</span></span>
+<span>  repd_mean <span class="op">=</span> <span class="fl">14.5</span>, <span class="co">#Reporting delay mean 10.5</span></span>
+<span>  del_disp <span class="op">=</span> <span class="fl">1.1</span>, <span class="co">#Reporting delay variance 5.0</span></span>
+<span>  ur_mean <span class="op">=</span> <span class="fl">0.3</span>, <span class="co">#Under reporting, mean</span></span>
+<span>  ur_beta_a <span class="op">=</span> <span class="fl">50.0</span> <span class="co">#Under reporting beta distr. shape factor</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="action-space-for-policy-interventions">Action Space for Policy Interventions<a class="anchor" aria-label="anchor" href="#action-space-for-policy-interventions"></a>
 </h3>
 <p>Define non-pharmaceutical interventions: We have 2 actions,
 introducing a “lockdown” and no interventions.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">Action_space</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span> <span class="op">(</span></span>
+<span>  NPI <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"No restrictions"</span>, <span class="st">"Social distancing"</span>, <span class="st">"Lockdown"</span><span class="op">)</span>,</span>
+<span>  R_coeff <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.0</span>, <span class="fl">0.5</span>, <span class="fl">0.2</span><span class="op">)</span>, <span class="co">#R0_act = R0 * ctrl_states</span></span>
+<span>  R_beta_a <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.0</span>, <span class="fl">5.0</span>, <span class="fl">5.0</span><span class="op">)</span>, <span class="co">#R0_act uncertainty</span></span>
+<span>  cost_of_NPI <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.0</span>, <span class="fl">0.01</span>, <span class="fl">0.15</span><span class="op">)</span> <span class="co">#NPI costs/day</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="simulation-setup">Simulation Setup<a class="anchor" aria-label="anchor" href="#simulation-setup"></a>
 </h3>
 <p>Set up key parameters and initialise simulation data. The target is
 to keep deaths at 100/day.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">C_target</span> <span class="op">&lt;-</span> <span class="fl">200</span> <span class="co">#cases target (not used)</span></span>
+<span><span class="va">D_target</span> <span class="op">&lt;-</span> <span class="fl">100</span> <span class="co">#death target</span></span>
+<span><span class="va">r_trans_len</span> <span class="op">&lt;-</span> <span class="fl">7</span> <span class="co">#R0 settling time after policy change</span></span>
+<span></span>
+<span><span class="va">sim_settings</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  ndays <span class="op">=</span> <span class="fl">61</span> <span class="op">*</span> <span class="fl">7</span>, <span class="co">#simulation length</span></span>
+<span>  start_day <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  N <span class="op">=</span> <span class="fl">1e7</span>, <span class="co"># population size</span></span>
+<span>  I0 <span class="op">=</span> <span class="fl">10</span>, <span class="co"># initial infections</span></span>
+<span>  C_target <span class="op">=</span> <span class="va">C_target</span>, <span class="co">#target cases</span></span>
+<span>  C_target_pen <span class="op">=</span> <span class="va">C_target</span><span class="op">*</span><span class="fl">1.5</span>, <span class="co">#overshoot penalty threshold</span></span>
+<span>  R_target <span class="op">=</span> <span class="fl">1.0</span>,</span>
+<span>  D_target <span class="op">=</span> <span class="va">D_target</span>,</span>
+<span>  D_target_pen <span class="op">=</span> <span class="fl">300</span>, <span class="co">#penalise for dethas above this threshold</span></span>
+<span>  <span class="co">#alpha = 0*1.3/C_target, #~proportional gain (regulates error in cases) covid</span></span>
+<span>  alpha <span class="op">=</span> <span class="fl">0</span><span class="op">*</span><span class="fl">3.25</span><span class="op">/</span><span class="va">C_target</span>, <span class="co">#~proportional gain (regulates error in cases) ebola</span></span>
+<span>  alpha_d <span class="op">=</span> <span class="fl">3.25</span><span class="op">/</span><span class="va">D_target</span>, <span class="co">#~proportional gain (regulates error in deaths)</span></span>
+<span>  ovp <span class="op">=</span> <span class="fl">0</span><span class="op">*</span><span class="fl">5.0</span>, <span class="co">#overshoot penalty</span></span>
+<span>  dovp <span class="op">=</span> <span class="fl">5.0</span>, <span class="co">#death overshoot penalty</span></span>
+<span>  gamma <span class="op">=</span> <span class="fl">0.95</span>, <span class="co">#cost discounting factor</span></span>
+<span>  n_ens <span class="op">=</span> <span class="fl">10L</span>, <span class="co">#ensemble size for projections</span></span>
+<span>  sim_ens <span class="op">=</span> <span class="fl">20L</span>, <span class="co">#ensemble size for full simulation</span></span>
+<span>  rf <span class="op">=</span> <span class="fl">21L</span>, <span class="co">#days 14</span></span>
+<span>  R_est_wind <span class="op">=</span> <span class="fl">5L</span>, <span class="co">#window for R estimation</span></span>
+<span>  pred_days <span class="op">=</span> <span class="fl">28L</span>, <span class="co">#projection time horizon</span></span>
+<span>  r_trans_steep <span class="op">=</span> <span class="fl">1.5</span>,  <span class="co"># Steepness of R-transition after policy change</span></span>
+<span>  r_trans_len <span class="op">=</span> <span class="va">r_trans_len</span>,</span>
+<span>  t0 <span class="op">=</span> <span class="va">r_trans_len</span>  <span class="op">/</span> <span class="fl">2</span>, <span class="co"># Midpoint of the transition</span></span>
+<span>  pathogen <span class="op">=</span> <span class="fl">2</span>, <span class="co">#use index to select the desired pathogen in Epi_pars</span></span>
+<span>  susceptibles <span class="op">=</span> <span class="fl">0</span>, <span class="co">#whether to model susceptibles</span></span>
+<span>  delay <span class="op">=</span> <span class="fl">0</span>, <span class="co">#whether to model case reporting delay</span></span>
+<span>  ur <span class="op">=</span> <span class="fl">0</span>, <span class="co">#whether to model case under-reporting</span></span>
+<span>  r_dir <span class="op">=</span> <span class="fl">2</span> <span class="co">#R-update mode after policy change (0 - Propagate through the generation time, 1 - step-like, 2 - logistic transition function)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co">#Set-up the main dataframe for sim data</span></span>
+<span><span class="va">column_names</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"days"</span>, <span class="st">"sim_id"</span>, <span class="st">"I"</span>, <span class="st">"Lambda"</span>, <span class="st">"C"</span>, <span class="st">"Lambda_C"</span>, <span class="st">"S"</span>, <span class="st">"Deaths"</span>, <span class="st">"Re"</span>, <span class="st">"Rew"</span>, <span class="st">"Rest"</span>, <span class="st">"R0est"</span>, <span class="st">"policy"</span>, <span class="st">"R_coeff"</span><span class="op">)</span></span>
+<span><span class="va">episim_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">0</span>, nrow <span class="op">=</span> <span class="op">(</span><span class="va">sim_settings</span><span class="op">$</span><span class="va">ndays</span><span class="op">)</span>, ncol <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">column_names</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">episim_data</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="va">column_names</span></span>
+<span></span>
+<span><span class="va">episim_data</span><span class="op">$</span><span class="va">policy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">sim_settings</span><span class="op">$</span><span class="va">ndays</span><span class="op">)</span></span>
+<span><span class="va">episim_data</span><span class="op">$</span><span class="va">days</span> <span class="op">&lt;-</span> <span class="fl">1</span><span class="op">:</span><span class="op">(</span><span class="va">sim_settings</span><span class="op">$</span><span class="va">ndays</span><span class="op">)</span></span>
+<span><span class="va">episim_data</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="va">sim_settings</span><span class="op">$</span><span class="va">I0</span>, <span class="va">sim_settings</span><span class="op">$</span><span class="va">I0</span>, <span class="va">Noise_pars</span><span class="op">$</span><span class="va">ur_mean</span> <span class="op">*</span> <span class="va">sim_settings</span><span class="op">$</span><span class="va">I0</span>, <span class="va">Noise_pars</span><span class="op">$</span><span class="va">ur_mean</span> <span class="op">*</span> <span class="va">sim_settings</span><span class="op">$</span><span class="va">I0</span>, <span class="va">sim_settings</span><span class="op">$</span><span class="va">N</span> <span class="op">-</span> <span class="va">sim_settings</span><span class="op">$</span><span class="va">I0</span>, <span class="fl">0</span>, <span class="va">Epi_pars</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"R0"</span><span class="op">]</span>, <span class="va">Epi_pars</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"R0"</span><span class="op">]</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">episim_data_ens</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">replicate</a></span><span class="op">(</span><span class="va">sim_settings</span><span class="op">$</span><span class="va">sim_ens</span>, <span class="va">episim_data</span>, simplify <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="kw">for</span> <span class="op">(</span><span class="va">ii</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="va">sim_settings</span><span class="op">$</span><span class="va">sim_ens</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">episim_data_ens</span><span class="op">[[</span><span class="va">ii</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">sim_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="va">ii</span>, <span class="va">sim_settings</span><span class="op">$</span><span class="va">ndays</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="running-the-simulation">Running the Simulation<a class="anchor" aria-label="anchor" href="#running-the-simulation"></a>
 </h3>
 <p>Run simulations in parallel using the pblapply function:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">episettings</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  sim_function <span class="op">=</span> <span class="va">Epi_MPC_run_wd</span>,</span>
+<span>  reward_function <span class="op">=</span> <span class="va">reward_fun_wd</span>,</span>
+<span>  R_estimator <span class="op">=</span> <span class="va">R_estim</span>,</span>
+<span>  noise_par <span class="op">=</span> <span class="va">Noise_pars</span>,</span>
+<span>  epi_par <span class="op">=</span> <span class="va">Epi_pars</span>,</span>
+<span>  actions <span class="op">=</span> <span class="va">Action_space</span>,</span>
+<span>  sim_settings <span class="op">=</span> <span class="va">sim_settings</span>,</span>
+<span>  parallel <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/parallel/clusterApply.html" class="external-link">clusterExport</a></span><span class="op">(</span><span class="va">cl</span>, <span class="fu"><a href="https://rdrr.io/r/base/ls.html" class="external-link">ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">parallel</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/parallel/clusterApply.html" class="external-link">clusterEvalQ</a></span><span class="op">(</span><span class="va">cl</span>, <span class="op">{</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/psolymos/pbapply" class="external-link">pbapply</a></span><span class="op">)</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://www.stat.auckland.ac.nz/~yee/VGAM/" class="external-link">VGAM</a></span><span class="op">)</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://sandorberegi.github.io/EpiControl/" class="external-link">EpiControl</a></span><span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## [[1]]</span></span>
 <span><span class="co">##  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
 <span><span class="co">##  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
@@ -165,12 +272,61 @@ to keep deaths at 100/day.</p>
 <span><span class="co">##  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
 <span><span class="co">##  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
 <span><span class="co">## [11] "methods"    "base"</span></span></code></pre>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Add the cluster object to your settings</span></span>
+<span><span class="va">episettings</span><span class="op">$</span><span class="va">cl</span> <span class="op">&lt;-</span> <span class="va">cl</span></span>
+<span></span>
+<span><span class="va">results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/epicontrol.html">epicontrol</a></span><span class="op">(</span><span class="va">episim_data_ens</span>, <span class="va">episettings</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## [1] 0</span></span>
 <span><span class="co">##   |                                                          |                                                  |   0%</span></span></code></pre>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">episim_data_ens</span> <span class="op">&lt;-</span> <span class="va">results</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/parallel/makeCluster.html" class="external-link">stopCluster</a></span><span class="op">(</span><span class="va">cl</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># You can achieve the same without running in parallel:</span></span>
+<span><span class="co">#for (jj in 1:sim_ens) {</span></span>
+<span><span class="co">#  episim_data_ens[[jj]] &lt;- Epi_MPC_run_wd(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, r_dir = 2, N = N)</span></span>
+<span><span class="co">#  setTxtProgressBar(pb,jj)</span></span>
+<span><span class="co">#}</span></span>
+<span><span class="co">#close(pb)</span></span>
+<span></span>
+<span><span class="co"># Calculate rolling and cumulative sums</span></span>
+<span></span>
+<span><span class="kw">for</span> <span class="op">(</span><span class="va">jj</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="va">sim_settings</span><span class="op">$</span><span class="va">sim_ens</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">episim_data_ens</span><span class="op">[[</span><span class="va">jj</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">episim_data_ens</span><span class="op">[[</span><span class="va">jj</span><span class="op">]</span><span class="op">]</span>, <span class="op">-</span><span class="va">sim_settings</span><span class="op">$</span><span class="va">pred_days</span><span class="op">)</span></span>
+<span>  <span class="va">episim_data_ens</span><span class="op">[[</span><span class="va">jj</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"D_roll"</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/zoo/man/rollmean.html" class="external-link">rollsum</a></span><span class="op">(</span><span class="va">episim_data_ens</span><span class="op">[[</span><span class="va">jj</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"Deaths"</span><span class="op">]</span>, <span class="fl">7</span>, fill <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span></span>
+<span>  <span class="va">episim_data_ens</span><span class="op">[[</span><span class="va">jj</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"I_roll"</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/zoo/man/rollmean.html" class="external-link">rollsum</a></span><span class="op">(</span><span class="va">episim_data_ens</span><span class="op">[[</span><span class="va">jj</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"I"</span><span class="op">]</span>, <span class="fl">7</span>, fill <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span></span>
+<span>  <span class="va">episim_data_ens</span><span class="op">[[</span><span class="va">jj</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"D_cum"</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cumsum.html" class="external-link">cumsum</a></span><span class="op">(</span><span class="va">episim_data_ens</span><span class="op">[[</span><span class="va">jj</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"Deaths"</span><span class="op">]</span><span class="op">)</span></span>
+<span>  <span class="va">episim_data_ens</span><span class="op">[[</span><span class="va">jj</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"I_cum"</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cumsum.html" class="external-link">cumsum</a></span><span class="op">(</span><span class="va">episim_data_ens</span><span class="op">[[</span><span class="va">jj</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"I"</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="plotting-results">Plotting results<a class="anchor" aria-label="anchor" href="#plotting-results"></a>
 </h3>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">combined_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="va">episim_data_ens</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">combined_data</span> <span class="op">&lt;-</span> <span class="va">combined_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">sim_id</span>, <span class="va">policy</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="va">days</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>group <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/cumsum.html" class="external-link">cumsum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">days</span><span class="op">)</span> <span class="op">!=</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">ungroup</a></span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">combined_data</span> <span class="op">&lt;-</span> <span class="va">combined_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="va">sim_id</span>, <span class="va">days</span>, <span class="va">policy</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">policy_labels</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"1"</span> <span class="op">=</span> <span class="st">"No intervention"</span>, <span class="st">"2"</span> <span class="op">=</span> <span class="st">"Lockdown"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">cls</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="st">"grey"</span>, <span class="va">sim_settings</span><span class="op">$</span><span class="va">sim_ens</span><span class="op">)</span></span>
+<span><span class="va">cls</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"red"</span></span>
+<span></span>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span>data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">combined_data</span>, <span class="va">sim_id</span> <span class="op">!=</span> <span class="fl">1</span><span class="op">)</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">days</span>, y <span class="op">=</span> <span class="va">Deaths</span>, color <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="va">sim_id</span><span class="op">)</span><span class="op">)</span>, alpha <span class="op">=</span> <span class="fl">0.3</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span>data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">combined_data</span>, <span class="va">sim_id</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">days</span>, y <span class="op">=</span> <span class="va">Deaths</span><span class="op">)</span>, color <span class="op">=</span> <span class="st">"darkred"</span>, alpha <span class="op">=</span> <span class="fl">1.0</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Days"</span>, y <span class="op">=</span> <span class="st">"Deaths"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_manual.html" class="external-link">scale_color_manual</a></span><span class="op">(</span>values <span class="op">=</span> <span class="va">cls</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_hline</a></span><span class="op">(</span>yintercept <span class="op">=</span> <span class="va">D_target</span>, linetype <span class="op">=</span> <span class="st">"dashed"</span>, color <span class="op">=</span> <span class="st">"purple"</span>, size<span class="op">=</span><span class="fl">0.25</span><span class="op">)</span><span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/guides.html" class="external-link">guides</a></span><span class="op">(</span>color <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="control_est_D_files/figure-html/plot-results-1.png" width="700"></p>
 </div>
 </div>
