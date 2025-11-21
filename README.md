@@ -7,7 +7,7 @@ Sandor Beregi, Sangeeta Bhatia, Anne Cori and Kris V. Parag, **EpiControl: a dat
 
 The realted methodology is also used in:
 Sandor Beregi, Kris V. Parag, **Optimal algorithms for controlling infectious diseases in real time using noisy infection data**. 
-PLOS Computational Biology 21 (9), e1013426, [Link]([https://www.medrxiv.org/content/10.1101/2024.05.24.24307878v1](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1013426)
+PLOS Computational Biology 21 (9), e1013426, [Link](https://www.medrxiv.org/content/10.1101/2024.05.24.24307878v1](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1013426)
 
 This code was intially adapted from the [Epicont.jl]([src/EpiCont.jl](https://github.com/sandorberegi/Epidemic-control-with-noisy-real-time-data)) Julia package.
 
