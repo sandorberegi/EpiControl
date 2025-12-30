@@ -11,4 +11,51 @@ PLOS Computational Biology 21 (9), e1013426, [Link](https://journals.plos.org/pl
 
 This code was intially adapted from the [Epicont.jl]([src/EpiCont.jl](https://github.com/sandorberegi/Epidemic-control-with-noisy-real-time-data)) Julia package.
 
-Under construction.
+Dependencies are the following:
+
+The code requires R version >4.0.0.
+
+Packages:
+
+| Package     | Version |
+|-------------|---------|
+| dplyr       | 1.1.4   |
+| ggplot2    | 3.5.1   |
+| knitr      | 1.45    |
+| pbapply    | 1.7-2   |
+| rmarkdown  | 2.26    |
+| stats      | 4.3.1   |
+| testthat   | 3.2.1.1 |
+| utils      | 4.3.1   |
+| VGAM       | 1.1-10  |
+
+
+This software was created using MacOS, latest tested version: MacOS Tahoe 26.2.
+If you run into issues with this software under any other OS please do not hesitate to report it to us.
+
+## Installation
+
+This package is developed as an **R package hosted on GitHub**.
+
+To install it, you need the **remotes** package:
+
+```r
+install.packages("remotes")
+
+remotes::install_github("sandorberegi/EpiControl")
+
+```
+If you want to build vignettes locally:
+
+```r
+remotes::install_github(
+  "sandorberegi/EpiControl",
+  build_vignettes = TRUE
+)
+```
+
+On a standard desktop or laptop computer with a recent version of R (≥ 4.3) and an internet connection, installation typically takes:
+
+1–3 minutes if all dependencies are already installed
+
+3–5 minutes if dependencies need to be downloaded and compiled
