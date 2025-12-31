@@ -56,6 +56,6 @@ remotes::install_github(
 
 On a standard desktop or laptop computer with a recent version of R (≥ 4.3) and an internet connection, installation typically takes:
 
-1–3 minutes if all dependencies are already installed
+less than a minute if all dependencies are already installed.
 
-3–5 minutes if dependencies need to be downloaded and compiled
+Examples (vignettes) demonstrating use and expected outputs can be found here: https://sandorberegi.github.io/EpiControl/
