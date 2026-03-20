@@ -1,0 +1,425 @@
+---
+title: "Use EpiControl with compartmental models"
+author: "Sandor Beregi"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  eval = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Overview
+
+We will use the MPC algorithm with an SIRDS model, where we apply
+interventions reducing the transmission rate. Projections to evaluate
+the cost function are still made using a renewal model.
+
+### Model overview
+
+## SIRDS compartmental model
+
+We will implement a discrete-time, stochastic **SIRDS** compartmental
+model with **two infectious compartments**:
+
+-   **S**: Susceptible
+-   **IR**: Infectious individuals who will **recover**
+-   **ID**: Infectious individuals who will **die**
+-   **R**: Recovered
+-   **D**: Dead
+
+The total infectious population is $$
+I = I_R + I_D
+$$ and the (living) population size used for transmission is $$
+N = S + I + R.
+$$
+
+### Force of infection
+
+Transmission is governed by the “force of infection” (FOI) which is
+computed as `beta * S / N` and then applied via `event(I, FOI)` to
+generate new infections.
+
+### Stochastic (or event-based) transitions
+
+Flows between compartments are generated via helper functions:
+
+-   `event(x, rate)` draws the number transitioning out of a compartment
+    size `x` at a given per-step rate (or hazard) over `dt`.
+-   `branch(x, p)` splits an event count `x` into two outcomes with
+    probability `p` (here used to allocate infections into fatal vs
+    non-fatal infections).
+
+At each time step:
+
+1.  **Infections**:\
+    $$
+    S \rightarrow I
+    $$ computed as `Infections <- event(I, FOI)`.
+
+2.  **Outcome split (branching according to the infection fatality rate
+    (IFR))**: each infection is assigned to
+
+    -   **fatal infection** with probability $IFR$: $S \rightarrow I_D$
+    -   **recovering infection** with probability $1-IFR$:
+        $S \rightarrow I_R$
+
+    implemented as `ID_and_IR <- branch(Infections, IFR)` where:
+
+    -   `ID_and_IR[1]` = new $I_D$
+    -   `ID_and_IR[2]` = new $I_R$
+
+3.  **Recovery**: $$
+    I_R \rightarrow R
+    $$ at rate `recov_rate`.
+
+4.  **Death**: $$
+    I_D \rightarrow D
+    $$ at rate `death_rate`.
+
+5.  **Waning immunity**: $$
+    R \rightarrow S
+    $$ at rate `waning_rate`.
+
+### Recorded event outputs
+
+Based on the above, we will define an `"events"` attribute to the model
+update so simulations can store incident flows and use them for control
+purposes:
+
+-   `Infections`
+-   `New_IR`, `New_ID`
+-   `Recoveries`
+-   `Deaths`
+-   `Losing_immunity`
+
+This is also useful for plotting incidence time series (e.g., daily
+infections or deaths) separately from compartment sizes.
+
+### State update equations
+
+Let $\Delta X$ denote the change in compartment $X$ over the time step.
+The model updates are:
+
+$$
+\Delta S  = -\text{Infections} + \text{LosingImmunity}
+$$ $$
+\Delta I_R = \text{New_IR} - \text{Recoveries}
+$$ $$
+\Delta I_D = \text{New_ID} - \text{Deaths}
+$$ $$
+\Delta R  = \text{Recoveries} - \text{LosingImmunity}
+$$ $$
+\Delta D  = \text{Deaths}
+$$
+
+where each flow is computed using `event()` / `branch()` as described
+above.
+
+Initialisation:
+
+```{r setup}
+library(EpiControl)
+library(VGAM)
+library(parallel)
+library(pbapply)
+library(zoo)  # For rolling sum operations
+library(dplyr)
+library(ggplot2)
+```
+
+```{r fix random seed}
+set.seed(1)
+```
+
+Let's define model and surveillance noise parameters.
+
+```{r define-parameters}
+Epi_pars <- data.frame(
+  Pathogen = c("COVID-19"),
+  R0 = c(2.2),
+  sigma = c(1/6.5), #recovery rate
+  gamma_d = c(1/6.5), #death rate
+  zeta= c(1/80), # rate of losing immunity
+  gen_time = c(6.5), # for the renewal model used in projections
+  gen_time_var = c(2.1), # for the renewal model used in projections
+  CFR = c(0.0132), # case fatality ratio
+  mortality_mean = c(10.0), # mean time from infection to death (for renewal model projections)
+  mortality_var = c(1.1) # mean time from infection to death (for renewal model projections)
+)
+
+Noise_pars <- data.frame(
+  repd_mean = 10.5,  # Reporting delay mean
+  del_disp = 5.0,    # Reporting delay variance
+  ur_mean = 0.3,     # Under-reporting mean
+  ur_beta_a = 50.0   # Beta distribution alpha for under-reporting
+)
+```
+
+```{r define sim pars}
+Action_space <- data.frame(
+  NPI = c("No restrictions", "Lockdown"),
+  R_coeff = c(1.0, 0.3),
+  R_beta_a = c(0.0, 5.0),
+  cost_of_NPI = c(0.0, 0.15)
+)
+
+C_target <- 5000
+D_target <- 12
+r_trans_len <- 7
+
+sim_settings <- list(
+  ndays = 120 * 7, #simulation length
+  start_day = 1,
+  N = 5e6, # population size
+  I0 = 10, # initial infections
+  C_target = C_target, #target cases
+  C_target_pen = C_target*1.5, #overshoot penalty threshold
+  R_target = 1.0,
+  D_target = D_target, #one way to get peaks at 400 is to increase this to 15
+  D_target_pen = 50, #max death
+  alpha = 1.3/C_target, #~proportional gain (regulates error in cases) covid
+  #alpha = 3.25/C_target #~proportional gain (regulates error in cases) ebola
+  alpha_d = 0*1.3/D_target,
+  ovp = 5.0, #overshoot penalty
+  dovp = 0*10.0, #death overshoot penalty
+  gamma = 0.95, #discounting factor
+  n_ens = 10L, #MC assembly size for 4
+  sim_ens = 10L, #assembly size for full simulation
+  rf = 14L, #days 14
+  R_est_wind = 5L, #rf-2 #window for R estimation
+  susceptibles = 0,
+  pred_days = 21L,
+  r_trans_steep = 0.5,  # Growth rate
+  r_trans_len = r_trans_len,  # Number of days for the transition
+  t0 = r_trans_len  / 2, # Midpoint of the transition
+  pathogen = 1,
+  susceptibles = 0,
+  delay = 1,
+  ur = 1,
+  r_dir = 2
+)
+```
+
+Let's create the compartments and define flows.
+
+```{r create flow}
+# Create the compartments
+
+model_pars <- list(
+  beta = Epi_pars$R0 * Epi_pars$sigma,
+  recov_rate = Epi_pars$sigma,
+  death_rate = Epi_pars$gamma_d,
+  waning_rate = Epi_pars$zeta,
+  IFR = Epi_pars$CFR
+)
+
+flow_SIRDS <- function(t, state, pars, dt) {
+  with(as.list(state), {
+    I <- IR + ID
+    N <- S + I + R
+
+    FOI <- pars$beta * S / N
+
+    # Events
+    Infections <- event(I, FOI)
+    ID_and_IR <- branch(Infections, pars$IFR)
+    Recoveries <- event(IR, pars$recov_rate)
+    Deaths <- event(ID, pars$death_rate)
+    Losing_immunity <- event(R, pars$waning_rate)
+
+    delta <- c(
+      S  = -Infections + Losing_immunity,
+      IR =  ID_and_IR[2] - Recoveries,
+      ID =  ID_and_IR[1] - Deaths,
+      R  =  Recoveries - Losing_immunity,
+      D  =  Deaths
+    )
+
+    attr(delta, "events") <- c(
+      Infections      = Infections,
+      New_IR          = ID_and_IR[2],
+      New_ID          = ID_and_IR[1],
+      Recoveries      = Recoveries,
+      Deaths          = Deaths,
+      Losing_immunity = Losing_immunity
+    )
+    delta
+  })
+}
+
+# ---- wire it up ----
+S <- new_compartment("S", 1000000)
+IR <- new_compartment("IR", 40)
+ID <- new_compartment("ID", 0)
+R <- new_compartment("R", 0)
+D <- new_compartment("D", 0)
+
+model <- build_model(S, IR, ID, R, D) |> set_flows(flow_SIRDS)
+
+```
+
+Let's define the events/calculated variables (e.g. reproduction number
+estimates) we'd like to export and track (either for control purposes or
+for plotting later, otherwise only compartments and flows are recorded
+by default.) We also set up episim_data_ens: the dataframe where we will
+store our results.
+
+```{r event names}
+
+event_names <- c("Infections", "New_IR", "New_ID", "Recoveries","Deaths", "Losing_immunity")
+
+track_R <- c("Re","Rew","Rest","R0est","policy","R_coeff","I","C","Lambda","Lambda_C")
+
+comp_names  <- names(state(model))  # e.g. S IR ID R D
+
+model$events
+
+column_names <- c("day","sim_id", comp_names, event_names, track_R)
+
+episim_data <- data.frame(matrix(0, nrow = (sim_settings$ndays), ncol = length(column_names)))
+colnames(episim_data) <- column_names
+
+episim_data$policy <- rep(1, sim_settings$ndays)
+episim_data$days <- 1:(sim_settings$ndays)
+
+st0 <- state(model)
+episim_data[1, comp_names] <- as.numeric(st0[comp_names])
+episim_data[1, "Re"] <- Epi_pars[1, "R0"]
+episim_data[1, "Rew"] <- Epi_pars[1, "R0"]
+episim_data[1, "R0est"] <- Epi_pars[1, "R0"]
+episim_data[1, "Rest"] <- Epi_pars[1, "R0"]
+episim_data[1, "I"] <- 1
+
+episim_data_ens <- replicate(sim_settings$sim_ens, episim_data, simplify = FALSE)
+
+for (ii in 1:sim_settings$sim_ens) {
+  episim_data_ens[[ii]]$sim_id <- rep(ii, sim_settings$ndays)
+}
+
+```
+
+Let's define the simulation settings
+
+```{r sim settings}
+
+episettings <- list(
+  sim_function = Epi_MPC_run_comp_model,
+  model = model,
+  incidence_flow = "Infections",
+  transimssion_par = "beta",
+  event_names = event_names,
+  reward_function = reward_fun_wd,
+  R_estimator = R_estim,
+  noise_par = Noise_pars,
+  epi_par = Epi_pars,
+  model_par = model_pars,
+  actions = Action_space,
+  updatepars <- function(pars, ctx) pars,
+  pars_to_change <- character(0),
+  sim_settings = sim_settings,
+  parallel = FALSE
+)
+
+```
+
+In the list above updatepars and pars_to_change define how interventions
+change transmission. De default setting for this is null, i.e. if
+unchanged, interventions will not change anything. This is not what we
+want, therfore we will define our custom function where the transmission
+parameter is reduced according to R_coeff.
+
+```{r intervention function}
+
+episettings$updatepars <- function(pars, ctx) {
+  R0      <- ctx$epi_par[ctx$pathogen, "R0"]
+  sigma   <- ctx$epi_par[ctx$pathogen, "sigma"]
+  gamma_d <- ctx$epi_par[ctx$pathogen, "gamma_d"]
+
+  dyn_beta <- R0 * ctx$Rcoeff * sigma
+
+  modifyList(pars, list(
+    beta       = dyn_beta,
+    beta0      = R0 * sigma,
+    recov_rate = sigma,
+    death_rate = gamma_d,
+    P          = 0.95
+  ))
+}
+
+```
+
+Now we run the simulation.
+
+```{r run-sim, warning=FALSE, message=FALSE}
+# Ensure actions$cost_of_NPI is numeric
+Action_space$cost_of_NPI <- as.numeric(as.character(Action_space$cost_of_NPI))
+
+# Verify numeric parameters in sim_settings
+numeric_params <- c("alpha", "alpha_d", "ovp", "dovp", "C_target", "C_target_pen", "D_target", "D_target_pen", "pred_days", "sim_ens", "ndays", "N")
+sim_settings[numeric_params] <- lapply(sim_settings[numeric_params], as.numeric)
+
+#Set this up for parallel run
+
+# Create and export cluster
+Ncores <-  2  # Adjust cores as appropriate
+cl <- makeCluster(Ncores)
+
+clusterExport(cl, ls())
+clusterExport(cl, c("reward_fun_wd", "Epi_pred_wd", "Epi_MPC_run_wd", "episim_data_ens", "episettings", "Action_space", "Epi_pars", "Noise_pars", "R_estim"))
+
+parallel::clusterEvalQ(cl, {
+  library(pbapply)
+  library(VGAM)
+  library(EpiControl)
+})
+
+episettings$parallel <- TRUE
+episettings$cl <- cl
+
+# Run the epicontrol function
+results <- epicontrol(episim_data_ens, episettings)
+
+# Stop the cluster after simulation
+parallel::stopCluster(cl)
+
+```
+
+Plot the results
+
+```{r plotting}
+
+# Combine Simulation Results
+combined_data <- do.call(rbind, results)
+
+combined_data <- combined_data %>%
+  group_by(sim_id, policy) %>%
+  arrange(days) %>%
+  mutate(group = cumsum(c(1, diff(days) != 1))) %>%
+  ungroup()
+
+combined_data <- combined_data %>%
+  arrange(sim_id, days, policy)
+
+policy_labels <- c("1" = "No intervention", "2" = "Lockdown")
+
+
+ggplot(combined_data %>% filter(sim_id == 1)) +
+  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = C, color = as.factor(sim_id)), alpha = 0.1) +
+  geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
+  geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, linewidth=0.25) +
+  geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", linewidth=0.25) +
+  labs(x = "Days", y = "Reported cases", color = "Policy") +
+  scale_color_manual(values = c("No intervention" = "chartreuse3", "Lockdown" = "red")) +
+  guides(color = guide_legend(title = "Policy"))
+
+```
