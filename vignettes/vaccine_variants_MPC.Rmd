@@ -1,5 +1,5 @@
 ---
-title: "Vaccination and new variant"
+title: "COVID-19 Vaccination and new variant"
 author: "Sandor Beregi"
 date: "`r Sys.Date()`"
 output: html_document
@@ -24,7 +24,7 @@ library(EpiControl)
 library(VGAM)
 library(parallel)
 library(pbapply)
-library(zoo)  # For rolling sum operations
+library(zoo)
 library(dplyr)
 library(ggplot2)
 ```
@@ -46,7 +46,7 @@ pop_data <- read_dta('covid_data/World_population_world_bank.dta')
 
 uk_pop <- pop_data[251, 2]
 
-# Convert date column to Date type if necessary
+# Convert date column to Date type
 uk_data$date_mdy <- as.Date(uk_data$date_mdy, format="%m/%d/%Y")
 
 uk_data$daily_cases_100k <- round((uk_data$daily_cases_100k)*67215293/1e5, digits =  0)
@@ -56,7 +56,7 @@ uk_data$daily_cases_100k[is.na(uk_data$daily_cases_100k)] <- 0
 real_days <- 370L
 ```
 
-Initialize the cluster for parallel computing:
+Initialise the cluster for parallel computing:
 
 ```{r parallel-setup}
 cores <- detectCores() - 1
@@ -67,7 +67,7 @@ clusterSetRNGStream(cl, iseed = 20250501)
 
 ### Epidemiological and Noise Parameters
 
-Define parameters for pathogens and noise: Can include different pathogens, in this case we consider COVID-19 and Ebola virus.
+Define parameters for pathogens and noise: Can include different pathogens, in this case we consider COVID-19 and Ebola virus disease.
 
 ```{r define-parameters}
 Epi_pars <- data.frame(
@@ -90,7 +90,7 @@ Noise_pars <- data.frame(
 
 ### Action Space for Policy Interventions
 
-Define non-pharmaceutical interventions: We have 2 actions, introducing a "lockdown" and no interventions.
+Define non-pharmaceutical interventions: We have 3 actions, "lockdown", "social-distancing", and no interventions.
 
 ```{r action-space}
 # Setting-up the control (using non-pharmaceutical interventions)
@@ -104,10 +104,10 @@ Action_space <- data.frame (
 
 ### Simulation Setup
 
-Set up key parameters and initialize simulation data:
+Set up key parameters and initialise simulation data. We use COVID-19 cases from the UK to intialise our simulations and turn our controller on on 1 January 2021 to bring cases near the target 5000 cases/day. We model the rollout of a vaccination programme and simulate the emergence of a 75% percent more transmissible variant (to relicate the emergence of the delta variant in the UK) which also reduces vaccine efficacy from 83% to 71.5%
 
 ```{r simulation-setup}
-ndays <- real_days+61L*7L#epidemic length #simulation length
+ndays <- real_days+61L*7L #simulation length
 N <- 1e7 # population size
 I0 <- 10 # initial infections
 
@@ -127,21 +127,21 @@ sim_settings <- list(
   C_target = C_target, #target cases
   C_target_pen = C_target*1.5, #overshoot penalty threshold
   R_target = 1.0,
-  D_target = D_target, #one way to get peaks at 400 is to increase this to 15
-  D_target_pen = 50, #max death
+  D_target = D_target, 
+  D_target_pen = 50, 
   alpha = 1.3/C_target, #~proportional gain (regulates error in cases) covid
   #alpha = 3.25/C_target #~proportional gain (regulates error in cases) ebola
   alpha_d = 0*1.3/D_target,
   ovp = 5.0, #overshoot penalty
   dovp = 0*10.0, #death overshoot penalty
   gamma = 0.95, #discounting factor
-  n_ens = n_ens, #MC assembly size for 4
+  n_ens = n_ens, #MC assembly size
   sim_ens = sim_ens, #assembly size for full simulation
-  rf = 7L, #days 14
-  R_est_wind = 5L, #rf-2 #window for R estimation
+  rf = 7L, 
+  R_est_wind = 5L, #window for R estimation
   pred_days = 12L,
-  r_trans_steep = 1.5,  # Growth rate
-  r_trans_len = r_trans_len,  # Number of days for the transition
+  r_trans_steep = 1.5,  # Transition steepness
+  r_trans_len = r_trans_len,  # Number of days for the transition between policies
   t0 = r_trans_len  / 2, # Midpoint of the transition
   pathogen = 1,
   susceptibles = 0,
@@ -167,8 +167,6 @@ column_names <- c("days", "sim_id", "I", "Lambda", "C", "Lambda_C", "S", "Re", "
 empty_df <- data.frame(matrix(ncol = length(column_names), nrow = 0))
 colnames(empty_df) <- column_names
 
-# Print the structure of the empty data frame
-# Create a zero matrix with 10 rows
 zero_matrix <- matrix(0, nrow = ndays, ncol = length(column_names))
 colnames(zero_matrix) <- column_names
 
@@ -192,7 +190,7 @@ episim_data[1:nrow(episim_data),"Real_C"] <- uk_data$daily_cases_100k[1:nrow(epi
 gen_time <- 6.5
 gen_time_var <- 2.1
 
-R_est_wind <- 5  # Define your window size
+R_est_wind <- 5  # Define window size
 
 Ygen <- dgamma(1:nrow(uk_data), gen_time/gen_time_var, 1/gen_time_var)
 Ygen <- Ygen/sum(Ygen)

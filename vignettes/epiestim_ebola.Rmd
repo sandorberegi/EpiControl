@@ -1,5 +1,5 @@
 ---
-title: "Ebola example - using EpiEstim for estimation"
+title: "Ebola example - using EpiEstim for R estimation"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{epiestim_ebola}
@@ -16,22 +16,26 @@ knitr::opts_chunk$set(
 )
 ```
 
+```{r echo=FALSE, results='asis'}
+cat("## Overview\n\n",
+    "This vignette demonstrates model predictive optimal control of Ebola Virus Disease 
+    cases in West Africa. We initialise the simulation from real data and roughly re-create the dynamics of the outbreak between 2013–2016. We will also demonstrate integration of EpiControl with EpiEstim. \n\n")
+```
+
+Load the required libraries:
+
 ```{r setup}
 library(EpiControl)
 library(VGAM)
 library(parallel)
 library(pbapply)
-library(zoo)  # For rolling sum operations
+library(zoo) 
 library(ggplot2)
 library(EpiEstim)
 
 library(readr)
 library(dplyr)
 library(tidyr)
-```
-
-```{r fix random seed}
-set.seed(1)
 ```
 
 ### Data preprocessing
@@ -56,8 +60,8 @@ all_dates <- data.frame(date_reported = seq(min(date_reported, na.rm = TRUE),
 date_counts <- as.data.frame(table(date_reported, useNA = "no"))
 date_counts_i <- as.data.frame(table(date_inferred, useNA = "no"))
 
-colnames(date_counts) <- c("date_reported", "count")
-colnames(date_counts_i) <- c("date_reported", "count")
+colnames(date_counts) <- c("date_reported", "count") #actual case-count
+colnames(date_counts_i) <- c("date_reported", "count") #inferred cases
 date_counts$date_reported <- as.Date(date_counts$date_reported)
 date_counts_i$date_reported <- as.Date(date_counts_i$date_reported)# Convert back to Date format
 
@@ -107,7 +111,7 @@ plot(res)
 
 We simulate a controlled epidemic starting on day 210 after the first case. We will set the control target to 50 cases/day. We will model susceptible depletion by infected individuals getting removed from the susceptible group. We expect the control to balance cases around the target until herd immunity is reached and then no further interventions applied.
 
-Initialise the cluster for parallel computing:
+Initialise the cluster for parallel computing and fix random seed for reproducibility:
 
 ```{r parallel-setup}
 cores <- detectCores() - 1
@@ -157,6 +161,7 @@ Action_space <- data.frame (
 
 We set the simulation parameters, targets, R estimation window etc. below.
 We do not account for vaccination or new variants, therefore we set v_max_rate = 0 and delta_multiplier = 1.0.
+Our target is to keep cases at 50 cases/day.
 
 ```{r simulation-setup}
 N <- 1e6 # population size
@@ -187,13 +192,13 @@ sim_settings <- list(
   ovp = 5.0, #overshoot penalty
   dovp = 0*10.0, #death overshoot penalty
   gamma = 0.95, #discounting factor
-  n_ens = n_ens, #MC assembly size for 4
+  n_ens = n_ens, 
   sim_ens = sim_ens, #assembly size for full simulation
   rf = 14L, #days 14
-  R_est_wind = 5L, #rf-2 #window for R estimation
+  R_est_wind = 5L,  #window for R estimation
   pred_days = 21L,
-  r_trans_steep = 1.5,  # Growth rate
-  r_trans_len = r_trans_len,  # Number of days for the transition
+  r_trans_steep = 1.5,  # Transition steepness
+  r_trans_len = r_trans_len,  # Number of days for the transition between policies
   t0 = r_trans_len  / 2, # Midpoint of the transition
   pathogen = 2,
   susceptibles = 1,

@@ -16,10 +16,13 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r echo=FALSE, results='asis'}
-cat("## Overview\n\n",
-    "This vignette demonstrates the optimisation of algorithm hyperparameters using Bayesian optimisation \n\n")
-```
+### Overview
+
+This vignette demonstrates how to optimise algorithm hyperparameters. In this example we would like to select the best the optimal projection horizon and discount factor to get the best performance across the entire timeframe of the simulation (i.e. over a much longer timeframe than we use for projections). This approach is common in receding horizon control.
+
+We would like to find the best strategy to control a COVID-19 outbreak, with policy revisions every 14 days.
+
+### Simulation with the initial parameters
 
 Load the required libraries:
 
@@ -225,7 +228,73 @@ Let's do the optimisation:
 OPT_Res <- BayesianOptimization(objective,
                                 bounds = list(horizon = c(14L, 35L),
                                               discount = c(0.7, 0.99)),
-                                init_points = 5, n_iter = 30,
+                                init_points = 5, n_iter = 50,
                                 acq = "ucb", kappa = 2.576, eps = 0.0,
                                 verbose = TRUE)
+```
+### Run simulations with the optimal parameters
+```{r sim_with_opt_pars}
+
+sim_settings$pred_days <- OPT_Res$Best_Par[1]
+sim_settings$gamma <- OPT_Res$Best_Par[2]
+
+episettings <- list(
+  sim_function = Epi_MPC_run_wd,
+  reward_function = reward_fun_wd,
+  R_estimator = R_estim,
+  noise_par = Noise_pars,
+  epi_par = Epi_pars,
+  actions = Action_space,
+  sim_settings = sim_settings,
+  parallel = FALSE
+)
+
+results_opt <- epicontrol(episim_data_ens, episettings)
+  
+episim_data_ens <- results_opt
+stopCluster(cl)
+
+#for (jj in 1:sim_ens) {
+#  episim_data_ens[[jj]] <- Epi_MPC_run_wd(episim_data_ens[[jj]], Epi_pars, Noise_pars, Action_space, pred_days = pred_days, n_ens = n_ens, ndays = nrow(episim_data), R_est_wind = R_est_wind, pathogen = 1, susceptibles = 0, delay = 0, ur = 0, r_dir = 2, N = N)
+#  setTxtProgressBar(pb,jj)
+#}
+#close(pb)
+
+for (jj in 1:sim_settings$sim_ens) {
+  episim_data_ens[[jj]] <- head(episim_data_ens[[jj]], -sim_settings$pred_days)
+  episim_data_ens[[jj]]["D_roll"] <- rollsum(episim_data_ens[[jj]]["Deaths"], 7, fill = NA)
+  episim_data_ens[[jj]]["I_roll"] <- rollsum(episim_data_ens[[jj]]["I"], 7, fill = NA)
+  episim_data_ens[[jj]]["D_cum"] <- cumsum(episim_data_ens[[jj]]["Deaths"])
+  episim_data_ens[[jj]]["I_cum"] <- cumsum(episim_data_ens[[jj]]["I"])
+}
+
+# Combine Simulation Results
+combined_data <- do.call(rbind, episim_data_ens)
+```
+
+### Plotting results
+
+```{r plot results}
+
+combined_data <- combined_data %>%
+  group_by(sim_id, policy) %>%
+  arrange(days) %>%
+  mutate(group = cumsum(c(1, diff(days) != 1))) %>%
+  ungroup()
+
+combined_data <- combined_data %>%
+  arrange(sim_id, days, policy)
+
+policy_labels <- c("1" = "No intervention", "2" = "Lockdown")
+
+
+ggplot(combined_data %>% filter(sim_id == 1)) +
+  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = C, color = as.factor(sim_id)), alpha = 0.1) +
+  geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
+  geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, linewidth=0.25) +
+  geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", linewidth=0.25) +
+  labs(x = "Days", y = "Reported cases (rolling weekly", color = "Policy") +
+  scale_color_manual(values = c("No intervention" = "chartreuse3", "Lockdown" = "red")) +
+  guides(color = guide_legend(title = "Policy"))
+
 ```

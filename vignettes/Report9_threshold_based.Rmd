@@ -1,5 +1,5 @@
 ---
-title: "Report9_threshold_based"
+title: "Threshold-based control of ICU cases for COVID-19"
 output: rmarkdown::html_vignette
 author: "Sandor Beregi"
 date: "`r Sys.Date()`"
@@ -13,7 +13,8 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  warning = FALSE
+  warning = FALSE,
+  message = FALSE
 )
 ```
 
@@ -24,14 +25,14 @@ cat("## Overview\n\n",
 
 ### Load Libraries and Setup
 
-Load the required libraries and initialize the simulation environment.
+Load the required libraries and initialise the simulation environment.
 
 ```{r load-libraries}
 library(EpiControl)
 library(VGAM)
 library(parallel)
 library(pbapply)
-library(zoo)  # For rolling sum operations
+library(zoo) 
 library(dplyr)
 library(ggplot2)
 ```
@@ -39,7 +40,7 @@ library(ggplot2)
 ```{r fix random seed}
 set.seed(1)
 ```
-Initialize the cluster for parallel computing:
+Initialise the cluster for parallel computing:
 
 ```{r parallel-setup}
 cores <- detectCores() - 1
@@ -86,7 +87,7 @@ Action_space <- data.frame(
 
 ### Simulation Setup
 
-Set up key parameters and initialize simulation data:
+Set up key parameters and initialise simulation data:
 
 ```{r simulation-setup}
 r_trans_len <- 7
@@ -97,10 +98,10 @@ sim_settings <- list(
   N = 1e7, # population size
   I0 = 10, # initial infections
   sim_ens = 20L, #assembly size for full simulation
-  rf = 1L, #days 14
-  R_est_wind = 5L, #rf-2 #window for R estimation
-  r_trans_steep = 1.5,  # Growth rate
-  r_trans_len = r_trans_len,  # Number of days for the transition
+  rf = 1L, 
+  R_est_wind = 5L, #window for R estimation
+  r_trans_steep = 1.5,  # Transition steepness
+  r_trans_len = r_trans_len,  # Number of days for the transition between policies
   t0 = r_trans_len  / 2, # Midpoint of the transition
   pathogen = 1,
   susceptibles = 0,
