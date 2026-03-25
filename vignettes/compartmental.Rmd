@@ -20,112 +20,88 @@ knitr::opts_chunk$set(
 
 ## Overview
 
-We will use the MPC algorithm with an SIRDS model, where we apply
-interventions reducing the transmission rate. Projections to evaluate
-the cost function are still made using a renewal model.
+We will use the MPC algorithm with an SVIR model (SIR with vaccination),
+where we apply interventions reducing the transmission rate. Projections
+to evaluate the cost function are still made using a renewal model.
 
-### Model overview
+## SVIR model description
 
-## SIRDS compartmental model
+We consider an event-based, stochastic compartmental **SVIR** epidemic
+model with four population groups:
 
-We will implement a discrete-time, stochastic **SIRDS** compartmental
-model with **two infectious compartments**:
+-   **S**: susceptible individuals
+-   **V**: vaccinated individuals
+-   **II**: infectious individuals
+-   **R**: recovered individuals
 
--   **S**: Susceptible
--   **IR**: Infectious individuals who will **recover**
--   **ID**: Infectious individuals who will **die**
--   **R**: Recovered
--   **D**: Dead
-
-The total infectious population is $$
-I = I_R + I_D
-$$ and the (living) population size used for transmission is $$
-N = S + I + R.
-$$
-
-### Force of infection
-
-Transmission is governed by the “force of infection” (FOI) which is
-computed as `beta * S / N` and then applied via `event(I, FOI)` to
-generate new infections.
-
-### Stochastic (or event-based) transitions
-
-Flows between compartments are generated via helper functions:
-
--   `event(x, rate)` draws the number transitioning out of a compartment
-    size `x` at a given per-step rate (or hazard) over `dt`.
--   `branch(x, p)` splits an event count `x` into two outcomes with
-    probability `p` (here used to allocate infections into fatal vs
-    non-fatal infections).
-
-At each time step:
-
-1.  **Infections**:\
-    $$
-    S \rightarrow I
-    $$ computed as `Infections <- event(I, FOI)`.
-
-2.  **Outcome split (branching according to the infection fatality rate
-    (IFR))**: each infection is assigned to
-
-    -   **fatal infection** with probability $IFR$: $S \rightarrow I_D$
-    -   **recovering infection** with probability $1-IFR$:
-        $S \rightarrow I_R$
-
-    implemented as `ID_and_IR <- branch(Infections, IFR)` where:
-
-    -   `ID_and_IR[1]` = new $I_D$
-    -   `ID_and_IR[2]` = new $I_R$
-
-3.  **Recovery**: $$
-    I_R \rightarrow R
-    $$ at rate `recov_rate`.
-
-4.  **Death**: $$
-    I_D \rightarrow D
-    $$ at rate `death_rate`.
-
-5.  **Waning immunity**: $$
-    R \rightarrow S
-    $$ at rate `waning_rate`.
-
-### Recorded event outputs
-
-Based on the above, we will define an `"events"` attribute to the model
-update so simulations can store incident flows and use them for control
-purposes:
-
--   `Infections`
--   `New_IR`, `New_ID`
--   `Recoveries`
--   `Deaths`
--   `Losing_immunity`
-
-This is also useful for plotting incidence time series (e.g., daily
-infections or deaths) separately from compartment sizes.
-
-### State update equations
-
-Let $\Delta X$ denote the change in compartment $X$ over the time step.
-The model updates are:
+The total population size is fixed:
 
 $$
-\Delta S  = -\text{Infections} + \text{LosingImmunity}
-$$ $$
-\Delta I_R = \text{New_IR} - \text{Recoveries}
-$$ $$
-\Delta I_D = \text{New_ID} - \text{Deaths}
-$$ $$
-\Delta R  = \text{Recoveries} - \text{LosingImmunity}
-$$ $$
-\Delta D  = \text{Deaths}
+N = S(t) + II(t) + R(t) + V(t).
 $$
 
-where each flow is computed using `event()` / `branch()` as described
-above.
+The model assumes that susceptible individuals may either become
+vaccinated or infected. Infectious individuals recover at a constant
+per-capita rate. The vaccine provides full immunity (vaccinated
+individuals never get infected).
 
-Initialisation:
+We introduce the model equations with the equilvalent (deterministic)
+ordinary differential equation system:
+
+$$
+\frac{dS}{dt} = - \lambda(t) S - \nu S
+$$
+
+$$
+\frac{dII}{dt} = \lambda(t) S - \gamma II
+$$
+
+$$
+\frac{dR}{dt} = \gamma II
+$$
+
+$$
+\frac{dV}{dt} = \nu S.
+$$
+
+This means that:
+
+-   susceptible individuals leave $S$ through either infection or
+    vaccination,
+-   newly infected individuals enter $II$,
+-   infectious individuals recover into $R$,
+-   vaccinated individuals move into $V$.
+
+### Stochastic event interpretation
+
+In our implementation, infection, vaccination, and recovery are
+represented as event-driven transitions over each time step $dt$. For
+susceptible individuals, infection and vaccination compete as
+alternative events, while recovery acts on the infectious compartment.
+The realised changes in each compartment are then aggregated into the
+state update.
+
+The model records the following event counts at each step:
+
+-   **Infections**
+-   **Vaccinations**
+-   **Recoveries**
+
+and the change of the compartment populations are given by
+
+$$
+\Delta S = -\text{Infections} - \text{Vaccinations}
+$$ $$
+\Delta V =  \text{Vaccinations}
+$$ $$
+\Delta II = \text{Infections} - \text{Recoveries}
+$$
+
+$$
+\Delta R = \text{Recoveries}
+$$
+
+## Initialisation
 
 ```{r setup}
 library(EpiControl)
@@ -146,12 +122,11 @@ Let's define model and surveillance noise parameters.
 ```{r define-parameters}
 Epi_pars <- data.frame(
   Pathogen = c("COVID-19"),
-  R0 = c(2.2),
+  R0 = c(2.8),
   sigma = c(1/6.5), #recovery rate
-  gamma_d = c(1/6.5), #death rate
-  zeta= c(1/80), # rate of losing immunity
+  vaccination_rate = c(1/1000), #vaccination rate
   gen_time = c(6.5), # for the renewal model used in projections
-  gen_time_var = c(2.1), # for the renewal model used in projections
+  gen_time_var = c(6.5), # for the renewal model used in projections
   CFR = c(0.0132), # case fatality ratio
   mortality_mean = c(10.0), # mean time from infection to death (for renewal model projections)
   mortality_var = c(1.1) # mean time from infection to death (for renewal model projections)
@@ -167,13 +142,13 @@ Noise_pars <- data.frame(
 
 ```{r define sim pars}
 Action_space <- data.frame(
-  NPI = c("No restrictions", "Lockdown"),
-  R_coeff = c(1.0, 0.3),
-  R_beta_a = c(0.0, 5.0),
-  cost_of_NPI = c(0.0, 0.15)
+  NPI = c("No restrictions", "Social distancing", "Lockdown"),
+  R_coeff = c(1.0, 0.5, 0.2),
+  R_beta_a = c(0.0, 5.0, 5.0),
+  cost_of_NPI = c(0.0, 0.03, 0.15)
 )
 
-C_target <- 5000
+C_target <- 1000
 D_target <- 12
 r_trans_len <- 7
 
@@ -183,7 +158,7 @@ sim_settings <- list(
   N = 5e6, # population size
   I0 = 10, # initial infections
   C_target = C_target, #target cases
-  C_target_pen = C_target*1.5, #overshoot penalty threshold
+  C_target_pen = C_target*5, #overshoot penalty threshold
   R_target = 1.0,
   D_target = D_target, #one way to get peaks at 400 is to increase this to 15
   D_target_pen = 50, #max death
@@ -210,7 +185,12 @@ sim_settings <- list(
 )
 ```
 
-Let's create the compartments and define flows.
+### Model definition
+
+Let's create the compartments and define flows. For simple transitions
+between compartments we use the 'event' function, whereas for competing
+events (infection and vacciantion for susceptible individuals) we will
+use the 'branch' function.
 
 ```{r create flow}
 # Create the compartments
@@ -218,65 +198,58 @@ Let's create the compartments and define flows.
 model_pars <- list(
   beta = Epi_pars$R0 * Epi_pars$sigma,
   recov_rate = Epi_pars$sigma,
-  death_rate = Epi_pars$gamma_d,
-  waning_rate = Epi_pars$zeta,
-  IFR = Epi_pars$CFR
+  vac_rate = Epi_pars$vaccination_rate
 )
 
-flow_SIRDS <- function(t, state, pars, dt) {
+flow_SVIR <- function(t, state, pars, dt) {
   with(as.list(state), {
-    I <- IR + ID
-    N <- S + I + R
+    N <- S + II + R + V
 
-    FOI <- pars$beta * S / N
+    inf_rate <- pars$beta * II / N
+    vac_rate <- pars$vac_rate
 
     # Events
-    Infections <- event(I, FOI)
-    ID_and_IR <- branch(Infections, pars$IFR)
-    Recoveries <- event(IR, pars$recov_rate)
-    Deaths <- event(ID, pars$death_rate)
-    Losing_immunity <- event(R, pars$waning_rate)
+    Inf_and_vac <- event(S, inf_rate+vac_rate)
+    II_and_VV <- branch(Inf_and_vac, inf_rate/(inf_rate+vac_rate))
+    Infections <- II_and_VV[1]
+    Vaccinations <- II_and_VV[2]
+    Recoveries <- event(II, pars$recov_rate)
 
     delta <- c(
-      S  = -Infections + Losing_immunity,
-      IR =  ID_and_IR[2] - Recoveries,
-      ID =  ID_and_IR[1] - Deaths,
-      R  =  Recoveries - Losing_immunity,
-      D  =  Deaths
+      S  = -Infections - Vaccinations,
+      II =  Infections - Recoveries,
+      R  =  Recoveries,
+      V  =  Vaccinations
     )
 
     attr(delta, "events") <- c(
       Infections      = Infections,
-      New_IR          = ID_and_IR[2],
-      New_ID          = ID_and_IR[1],
-      Recoveries      = Recoveries,
-      Deaths          = Deaths,
-      Losing_immunity = Losing_immunity
+      Vaccinations    = Vaccinations,
+      Recoveries      = Recoveries
     )
     delta
   })
 }
 
 # ---- wire it up ----
-S <- new_compartment("S", 1000000)
-IR <- new_compartment("IR", 40)
-ID <- new_compartment("ID", 0)
+S <- new_compartment("S", 6000000)
+V <- new_compartment("V", 0)
+II <- new_compartment("II", 40)
 R <- new_compartment("R", 0)
-D <- new_compartment("D", 0)
 
-model <- build_model(S, IR, ID, R, D) |> set_flows(flow_SIRDS)
+model <- build_model(S, V, II, R) |> set_flows(flow_SVIR)
 
 ```
 
-Let's define the events/calculated variables (e.g. reproduction number
-estimates) we'd like to export and track (either for control purposes or
-for plotting later, otherwise only compartments and flows are recorded
-by default.) We also set up episim_data_ens: the dataframe where we will
-store our results.
+Let's add the events/calculated variables (e.g. reproduction number
+estimates) we'd like to export and track to restuls (either for control
+purposes or for plotting later, otherwise only compartments and flows
+are recorded by default.) We also set up episim_data_ens: the dataframe
+where we will store our results.
 
 ```{r event names}
 
-event_names <- c("Infections", "New_IR", "New_ID", "Recoveries","Deaths", "Losing_immunity")
+event_names <- c("Infections", "Vaccinations", "Recoveries")
 
 track_R <- c("Re","Rew","Rest","R0est","policy","R_coeff","I","C","Lambda","Lambda_C")
 
@@ -308,6 +281,8 @@ for (ii in 1:sim_settings$sim_ens) {
 
 ```
 
+### Simulation
+
 Let's define the simulation settings
 
 ```{r sim settings}
@@ -335,24 +310,19 @@ episettings <- list(
 In the list above updatepars and pars_to_change define how interventions
 change transmission. De default setting for this is null, i.e. if
 unchanged, interventions will not change anything. This is not what we
-want, therfore we will define our custom function where the transmission
-parameter is reduced according to R_coeff.
+want, therefore we will define our custom function where the
+transmission parameter is reduced according to R_coeff.
 
 ```{r intervention function}
 
 episettings$updatepars <- function(pars, ctx) {
   R0      <- ctx$epi_par[ctx$pathogen, "R0"]
   sigma   <- ctx$epi_par[ctx$pathogen, "sigma"]
-  gamma_d <- ctx$epi_par[ctx$pathogen, "gamma_d"]
 
   dyn_beta <- R0 * ctx$Rcoeff * sigma
 
   modifyList(pars, list(
-    beta       = dyn_beta,
-    beta0      = R0 * sigma,
-    recov_rate = sigma,
-    death_rate = gamma_d,
-    P          = 0.95
+    beta       = dyn_beta
   ))
 }
 
@@ -394,6 +364,8 @@ parallel::stopCluster(cl)
 
 ```
 
+### Results
+
 Plot the results
 
 ```{r plotting}
@@ -410,7 +382,7 @@ combined_data <- combined_data %>%
 combined_data <- combined_data %>%
   arrange(sim_id, days, policy)
 
-policy_labels <- c("1" = "No intervention", "2" = "Lockdown")
+policy_labels <- c("1" = "No intervention", "2" = "Social distancing", "3" = "Lockdown")
 
 
 ggplot(combined_data %>% filter(sim_id == 1)) +
@@ -419,7 +391,7 @@ ggplot(combined_data %>% filter(sim_id == 1)) +
   geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, linewidth=0.25) +
   geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", linewidth=0.25) +
   labs(x = "Days", y = "Reported cases", color = "Policy") +
-  scale_color_manual(values = c("No intervention" = "chartreuse3", "Lockdown" = "red")) +
+  scale_color_manual(values = c("No intervention" = "chartreuse3", "Social distancing" = "violet", "Lockdown" = "red")) +
   guides(color = guide_legend(title = "Policy"))
 
 ```
