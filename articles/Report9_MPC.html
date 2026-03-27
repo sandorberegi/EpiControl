@@ -26,7 +26,7 @@
     
     <a class="navbar-brand me-2" href="../index.html">EpiControl</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
 
     
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,13 +41,14 @@
 <li class="active nav-item dropdown">
   <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false" aria-haspopup="true" id="dropdown-articles">Articles</a>
   <div class="dropdown-menu" aria-labelledby="dropdown-articles">
+    <a class="dropdown-item" href="../articles/compartmental.html">Use EpiControl with compartmental models</a>
     <a class="dropdown-item" href="../articles/control_est_D.html">Epidemic control based-on deaths</a>
-    <a class="dropdown-item" href="../articles/epiestim_ebola.html">Ebola example - using EpiEstim for R estimation</a>
+    <a class="dropdown-item" href="../articles/epiestim_ebola.html">Ebola example - using EpiEstim for estimation</a>
     <a class="dropdown-item" href="../articles/hyperparameter_opt.html">Bayesian hyperparameter optimisation</a>
     <a class="dropdown-item" href="../articles/multiple_NPIs.html">COVID-19 control with a larger NPI space</a>
     <a class="dropdown-item" href="../articles/Report9_MPC.html">Optimal control of ICU cases for COVID-19</a>
     <a class="dropdown-item" href="../articles/Report9_threshold_based.html">Threshold-based control of ICU cases for COVID-19</a>
-    <a class="dropdown-item" href="../articles/vaccine_variants_MPC.html">COVID-19 Vaccination and new variant</a>
+    <a class="dropdown-item" href="../articles/vaccine_variants_MPC.html">COVID-19 vaccination and new variant</a>
   </div>
 </li>
       </ul>
@@ -71,7 +72,7 @@
                         <h4 data-toc-skip class="author">Sandor
 Beregi</h4>
             
-            <h4 data-toc-skip class="date">2025-10-03</h4>
+            <h4 data-toc-skip class="date">2026-03-27</h4>
       
       
       <div class="d-none name"><code>Report9_MPC.Rmd</code></div>
@@ -87,7 +88,7 @@ cases for COVID-19</p>
 <div class="section level3">
 <h3 id="load-libraries-and-setup">Load Libraries and Setup<a class="anchor" aria-label="anchor" href="#load-libraries-and-setup"></a>
 </h3>
-<p>Load the required libraries and initialise the simulation
+<p>Load the required libraries and initialize the simulation
 environment.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://sandorberegi.github.io/EpiControl/" class="external-link">EpiControl</a></span><span class="op">)</span></span>
@@ -97,7 +98,7 @@ environment.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">parallel</span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/psolymos/pbapply" class="external-link">pbapply</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://zoo.R-Forge.R-project.org/" class="external-link">zoo</a></span><span class="op">)</span></span></code></pre></div>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://zoo.R-Forge.R-project.org/" class="external-link">zoo</a></span><span class="op">)</span>  <span class="co"># For rolling sum operations</span></span></code></pre></div>
 <pre><code><span><span class="co">## </span></span>
 <span><span class="co">## Attaching package: 'zoo'</span></span></code></pre>
 <pre><code><span><span class="co">## The following objects are masked from 'package:base':</span></span>
@@ -117,7 +118,7 @@ environment.</p>
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span></code></pre></div>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></code></pre></div>
-<p>Initialise the cluster for parallel computing:</p>
+<p>Initialize the cluster for parallel computing:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cores</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/parallel/detectCores.html" class="external-link">detectCores</a></span><span class="op">(</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1</span></span>
 <span><span class="va">cl</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/parallel/makeCluster.html" class="external-link">makeCluster</a></span><span class="op">(</span><span class="va">cores</span><span class="op">)</span></span>
@@ -163,7 +164,7 @@ introducing a “lockdown” and no interventions.</p>
 <div class="section level3">
 <h3 id="simulation-setup">Simulation Setup<a class="anchor" aria-label="anchor" href="#simulation-setup"></a>
 </h3>
-<p>Set up key parameters and initialise simulation data:</p>
+<p>Set up key parameters and initialize simulation data:</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">C_target</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
 <span><span class="va">D_target</span> <span class="op">&lt;-</span> <span class="fl">12</span></span>
@@ -177,21 +178,21 @@ introducing a “lockdown” and no interventions.</p>
 <span>  C_target <span class="op">=</span> <span class="va">C_target</span>, <span class="co">#target cases</span></span>
 <span>  C_target_pen <span class="op">=</span> <span class="va">C_target</span><span class="op">*</span><span class="fl">1.5</span>, <span class="co">#overshoot penalty threshold</span></span>
 <span>  R_target <span class="op">=</span> <span class="fl">1.0</span>,</span>
-<span>  D_target <span class="op">=</span> <span class="va">D_target</span>, </span>
-<span>  D_target_pen <span class="op">=</span> <span class="fl">50</span>,</span>
+<span>  D_target <span class="op">=</span> <span class="va">D_target</span>, <span class="co">#one way to get peaks at 400 is to increase this to 15</span></span>
+<span>  D_target_pen <span class="op">=</span> <span class="fl">50</span>, <span class="co">#max death</span></span>
 <span>  alpha <span class="op">=</span> <span class="fl">0</span><span class="op">*</span><span class="fl">1.3</span><span class="op">/</span><span class="va">C_target</span>, <span class="co">#~proportional gain (regulates error in cases) covid</span></span>
 <span>  <span class="co">#alpha = 3.25/C_target #~proportional gain (regulates error in cases) ebola</span></span>
 <span>  alpha_d <span class="op">=</span> <span class="fl">1.3</span><span class="op">/</span><span class="va">D_target</span>,</span>
 <span>  ovp <span class="op">=</span> <span class="fl">0</span><span class="op">*</span><span class="fl">5.0</span>, <span class="co">#overshoot penalty</span></span>
 <span>  dovp <span class="op">=</span> <span class="fl">10.0</span>, <span class="co">#death overshoot penalty</span></span>
 <span>  gamma <span class="op">=</span> <span class="fl">0.95</span>, <span class="co">#discounting factor</span></span>
-<span>  n_ens <span class="op">=</span> <span class="fl">10L</span>, <span class="co">#MC assembly size for</span></span>
+<span>  n_ens <span class="op">=</span> <span class="fl">10L</span>, <span class="co">#MC assembly size for 4</span></span>
 <span>  sim_ens <span class="op">=</span> <span class="fl">20L</span>, <span class="co">#assembly size for full simulation</span></span>
 <span>  rf <span class="op">=</span> <span class="fl">21L</span>, <span class="co">#days 14</span></span>
-<span>  R_est_wind <span class="op">=</span> <span class="fl">5L</span>, <span class="co">#window for R estimation</span></span>
+<span>  R_est_wind <span class="op">=</span> <span class="fl">5L</span>, <span class="co">#rf-2 #window for R estimation</span></span>
 <span>  pred_days <span class="op">=</span> <span class="fl">28L</span>,</span>
-<span>  r_trans_steep <span class="op">=</span> <span class="fl">1.5</span>, <span class="co"># sharpness of transition function</span></span>
-<span>  r_trans_len <span class="op">=</span> <span class="va">r_trans_len</span>,  <span class="co"># Number of days for the transition between policies</span></span>
+<span>  r_trans_steep <span class="op">=</span> <span class="fl">1.5</span>,  <span class="co"># Growth rate</span></span>
+<span>  r_trans_len <span class="op">=</span> <span class="va">r_trans_len</span>,  <span class="co"># Number of days for the transition</span></span>
 <span>  t0 <span class="op">=</span> <span class="va">r_trans_len</span>  <span class="op">/</span> <span class="fl">2</span>, <span class="co"># Midpoint of the transition</span></span>
 <span>  pathogen <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  susceptibles <span class="op">=</span> <span class="fl">0</span>,</span>
