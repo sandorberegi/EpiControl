@@ -92,34 +92,16 @@ for COVID-19 based on death data only</p>
 environment.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://sandorberegi.github.io/EpiControl/" class="external-link">EpiControl</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://www.stat.auckland.ac.nz/~yee/VGAM/" class="external-link">VGAM</a></span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## Loading required package: stats4</span></span></code></pre>
-<pre><code><span><span class="co">## Loading required package: splines</span></span></code></pre>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">parallel</span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://www.stat.auckland.ac.nz/~yee/VGAM/" class="external-link">VGAM</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">parallel</span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/psolymos/pbapply" class="external-link">pbapply</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://zoo.R-Forge.R-project.org/" class="external-link">zoo</a></span><span class="op">)</span>  <span class="co"># For rolling sum operations</span></span></code></pre></div>
-<pre><code><span><span class="co">## </span></span>
-<span><span class="co">## Attaching package: 'zoo'</span></span></code></pre>
-<pre><code><span><span class="co">## The following objects are masked from 'package:base':</span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">##     as.Date, as.Date.numeric</span></span></code></pre>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## </span></span>
-<span><span class="co">## Attaching package: 'dplyr'</span></span></code></pre>
-<pre><code><span><span class="co">## The following objects are masked from 'package:stats':</span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">##     filter, lag</span></span></code></pre>
-<pre><code><span><span class="co">## The following objects are masked from 'package:base':</span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">##     intersect, setdiff, setequal, union</span></span></code></pre>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://zoo.R-Forge.R-project.org/" class="external-link">zoo</a></span><span class="op">)</span>  <span class="co"># For rolling sum operations</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></code></pre></div>
 <p>Initialize the cluster for parallel computing:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cores</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/parallel/detectCores.html" class="external-link">detectCores</a></span><span class="op">(</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1</span></span>
 <span><span class="va">cl</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/parallel/makeCluster.html" class="external-link">makeCluster</a></span><span class="op">(</span><span class="va">cores</span><span class="op">)</span></span>
 <span></span>
@@ -130,7 +112,7 @@ environment.</p>
 </h3>
 <p>Define parameters for pathogens and noise: Can include different
 pathogens, in this case we consider COVID-19 and Ebola virus.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">Epi_pars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  Pathogen <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"COVID-19"</span>, <span class="st">"Ebola"</span><span class="op">)</span>,</span>
 <span>  R0 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2.2</span>, <span class="fl">2.5</span><span class="op">)</span>,</span>
@@ -153,7 +135,7 @@ pathogens, in this case we consider COVID-19 and Ebola virus.</p>
 </h3>
 <p>Define non-pharmaceutical interventions: We have 2 actions,
 introducing a “lockdown” and no interventions.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">Action_space</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span> <span class="op">(</span></span>
 <span>  NPI <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"No restrictions"</span>, <span class="st">"Social distancing"</span>, <span class="st">"Lockdown"</span><span class="op">)</span>,</span>
 <span>  R_coeff <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.0</span>, <span class="fl">0.5</span>, <span class="fl">0.2</span><span class="op">)</span>, <span class="co">#R0_act = R0 * ctrl_states</span></span>
@@ -165,7 +147,7 @@ introducing a “lockdown” and no interventions.</p>
 <h3 id="simulation-setup">Simulation Setup<a class="anchor" aria-label="anchor" href="#simulation-setup"></a>
 </h3>
 <p>Set up key parameters and initialize simulation data:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">C_target</span> <span class="op">&lt;-</span> <span class="fl">200</span></span>
 <span><span class="va">D_target</span> <span class="op">&lt;-</span> <span class="fl">100</span></span>
 <span><span class="va">r_trans_len</span> <span class="op">&lt;-</span> <span class="fl">7</span></span>
@@ -219,8 +201,9 @@ introducing a “lockdown” and no interventions.</p>
 <h3 id="running-the-simulation">Running the Simulation<a class="anchor" aria-label="anchor" href="#running-the-simulation"></a>
 </h3>
 <p>Run simulations in parallel using the pblapply function:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">episettings</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span></span>
+<span><span class="va">episettings</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  sim_function <span class="op">=</span> <span class="va">Epi_MPC_run_wd</span>,</span>
 <span>  reward_function <span class="op">=</span> <span class="va">reward_fun_wd</span>,</span>
 <span>  R_estimator <span class="op">=</span> <span class="va">R_estim</span>,</span>
@@ -238,70 +221,70 @@ introducing a “lockdown” and no interventions.</p>
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/psolymos/pbapply" class="external-link">pbapply</a></span><span class="op">)</span></span>
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://www.stat.auckland.ac.nz/~yee/VGAM/" class="external-link">VGAM</a></span><span class="op">)</span></span>
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://sandorberegi.github.io/EpiControl/" class="external-link">EpiControl</a></span><span class="op">)</span></span>
-<span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## [[1]]</span></span>
-<span><span class="co">##  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
-<span><span class="co">##  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
-<span><span class="co">## [11] "methods"    "base"      </span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## [[2]]</span></span>
-<span><span class="co">##  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
-<span><span class="co">##  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
-<span><span class="co">## [11] "methods"    "base"      </span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## [[3]]</span></span>
-<span><span class="co">##  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
-<span><span class="co">##  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
-<span><span class="co">## [11] "methods"    "base"      </span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## [[4]]</span></span>
-<span><span class="co">##  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
-<span><span class="co">##  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
-<span><span class="co">## [11] "methods"    "base"      </span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## [[5]]</span></span>
-<span><span class="co">##  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
-<span><span class="co">##  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
-<span><span class="co">## [11] "methods"    "base"      </span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## [[6]]</span></span>
-<span><span class="co">##  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
-<span><span class="co">##  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
-<span><span class="co">## [11] "methods"    "base"      </span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## [[7]]</span></span>
-<span><span class="co">##  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
-<span><span class="co">##  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
-<span><span class="co">## [11] "methods"    "base"      </span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## [[8]]</span></span>
-<span><span class="co">##  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
-<span><span class="co">##  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
-<span><span class="co">## [11] "methods"    "base"      </span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## [[9]]</span></span>
-<span><span class="co">##  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
-<span><span class="co">##  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
-<span><span class="co">## [11] "methods"    "base"      </span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## [[10]]</span></span>
-<span><span class="co">##  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
-<span><span class="co">##  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
-<span><span class="co">## [11] "methods"    "base"      </span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## [[11]]</span></span>
-<span><span class="co">##  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
-<span><span class="co">##  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
-<span><span class="co">## [11] "methods"    "base"</span></span></code></pre>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Add the cluster object to your settings</span></span>
+<span><span class="op">}</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [[1]]</span></span>
+<span><span class="co">#&gt;  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
+<span><span class="co">#&gt;  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
+<span><span class="co">#&gt; [11] "methods"    "base"      </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; [[2]]</span></span>
+<span><span class="co">#&gt;  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
+<span><span class="co">#&gt;  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
+<span><span class="co">#&gt; [11] "methods"    "base"      </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; [[3]]</span></span>
+<span><span class="co">#&gt;  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
+<span><span class="co">#&gt;  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
+<span><span class="co">#&gt; [11] "methods"    "base"      </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; [[4]]</span></span>
+<span><span class="co">#&gt;  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
+<span><span class="co">#&gt;  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
+<span><span class="co">#&gt; [11] "methods"    "base"      </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; [[5]]</span></span>
+<span><span class="co">#&gt;  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
+<span><span class="co">#&gt;  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
+<span><span class="co">#&gt; [11] "methods"    "base"      </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; [[6]]</span></span>
+<span><span class="co">#&gt;  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
+<span><span class="co">#&gt;  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
+<span><span class="co">#&gt; [11] "methods"    "base"      </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; [[7]]</span></span>
+<span><span class="co">#&gt;  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
+<span><span class="co">#&gt;  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
+<span><span class="co">#&gt; [11] "methods"    "base"      </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; [[8]]</span></span>
+<span><span class="co">#&gt;  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
+<span><span class="co">#&gt;  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
+<span><span class="co">#&gt; [11] "methods"    "base"      </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; [[9]]</span></span>
+<span><span class="co">#&gt;  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
+<span><span class="co">#&gt;  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
+<span><span class="co">#&gt; [11] "methods"    "base"      </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; [[10]]</span></span>
+<span><span class="co">#&gt;  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
+<span><span class="co">#&gt;  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
+<span><span class="co">#&gt; [11] "methods"    "base"      </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; [[11]]</span></span>
+<span><span class="co">#&gt;  [1] "EpiControl" "VGAM"       "splines"    "stats4"     "pbapply"   </span></span>
+<span><span class="co">#&gt;  [6] "stats"      "graphics"   "grDevices"  "utils"      "datasets"  </span></span>
+<span><span class="co">#&gt; [11] "methods"    "base"</span></span>
+<span></span>
+<span><span class="co"># Add the cluster object to your settings</span></span>
 <span><span class="va">episettings</span><span class="op">$</span><span class="va">cl</span> <span class="op">&lt;-</span> <span class="va">cl</span></span>
 <span></span>
-<span><span class="va">results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/epicontrol.html">epicontrol</a></span><span class="op">(</span><span class="va">episim_data_ens</span>, <span class="va">episettings</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## [1] 0</span></span>
-<span><span class="co">##   |                                                          |                                                  |   0%</span></span></code></pre>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">episim_data_ens</span> <span class="op">&lt;-</span> <span class="va">results</span></span>
+<span><span class="va">results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/epicontrol.html">epicontrol</a></span><span class="op">(</span><span class="va">episim_data_ens</span>, <span class="va">episettings</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
+<span><span class="co">#&gt;   |                                                          |                                                  |   0%</span></span>
+<span></span>
+<span><span class="va">episim_data_ens</span> <span class="op">&lt;-</span> <span class="va">results</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/parallel/makeCluster.html" class="external-link">stopCluster</a></span><span class="op">(</span><span class="va">cl</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co">#for (jj in 1:sim_ens) {</span></span>
@@ -324,8 +307,9 @@ introducing a “lockdown” and no interventions.</p>
 <div class="section level3">
 <h3 id="plotting-results">Plotting results<a class="anchor" aria-label="anchor" href="#plotting-results"></a>
 </h3>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">combined_data</span> <span class="op">&lt;-</span> <span class="va">combined_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span></span>
+<span><span class="va">combined_data</span> <span class="op">&lt;-</span> <span class="va">combined_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">sim_id</span>, <span class="va">policy</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="va">days</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>group <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/cumsum.html" class="external-link">cumsum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">days</span><span class="op">)</span> <span class="op">!=</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
