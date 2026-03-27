@@ -1,5 +1,5 @@
 ---
-title: "Simulating Epidemic Dynamics with Policy Interventions"
+title: "Optimal control of ICU cases for COVID-19"
 author: "Sandor Beregi"
 date: "`r Sys.Date()`"
 output: html_document

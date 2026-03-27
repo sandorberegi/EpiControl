@@ -1,5 +1,5 @@
 ---
-title: "MPC with death data only"
+title: "Epidemic control based-on deaths"
 author: "Sandor Beregi"
 date: "`r Sys.Date()`"
 output: html_document

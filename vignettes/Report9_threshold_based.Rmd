@@ -1,5 +1,5 @@
 ---
-title: "Report9_threshold_based"
+title: "Threshold-based control of ICU cases for COVID-19"
 output: rmarkdown::html_vignette
 author: "Sandor Beregi"
 date: "`r Sys.Date()`"

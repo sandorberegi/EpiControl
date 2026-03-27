@@ -1,5 +1,5 @@
 ---
-title: "Vaccination and new variant"
+title: "COVID-19 vaccination and new variant"
 author: "Sandor Beregi"
 date: "`r Sys.Date()`"
 output: html_document

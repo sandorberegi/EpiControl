@@ -1,5 +1,5 @@
 ---
-title: "multiple_NPIs"
+title: "COVID-19 control with a larger NPI space"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{multiple_NPIs}
