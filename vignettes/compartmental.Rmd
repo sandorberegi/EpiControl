@@ -49,11 +49,11 @@ We introduce the model equations with the equilvalent (deterministic)
 ordinary differential equation system:
 
 $$
-\frac{dS}{dt} = - \lambda(t) S - \nu S
+\frac{dS}{dt} = - \beta \frac{S}{N} II  - \nu S
 $$
 
 $$
-\frac{dII}{dt} = \lambda(t) S - \gamma II
+\frac{dII}{dt} = \beta \frac{S}{N} II - \gamma II
 $$
 
 $$
@@ -71,6 +71,8 @@ This means that:
 -   newly infected individuals enter $II$,
 -   infectious individuals recover into $R$,
 -   vaccinated individuals move into $V$.
+
+and $\beta, \gamma$ and $\nu$ are the infection, recovery and vaccination rates.
 
 ### Stochastic event interpretation
 
