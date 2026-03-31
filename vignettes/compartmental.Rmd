@@ -142,6 +142,12 @@ Noise_pars <- data.frame(
 )
 ```
 
+### Simulation/model projecttion parameters and cost function
+
+We choose the optimal NPI every `rf = 14` days to optimise the following cost function (defined by reward_fun_wd.R): `alpha * abs(C - C_target) + ovp + NPI_cost` where `ovp` is the penalty for cases going above `C_target_pen` We only define a target for daily cases, the cost function requires a death target as well, but we will set the corresponding coefficients to zero. 
+
+We project forward using a renewal branching process model for a time window of `pred_days = 21 days`. We use an ensemble of `n_ens = 10` simulations to derive the expected cost of each NPI in Action_space.
+
 ```{r define sim pars}
 Action_space <- data.frame(
   NPI = c("No restrictions", "Social distancing", "Lockdown"),
@@ -180,7 +186,6 @@ sim_settings <- list(
   r_trans_len = r_trans_len,  # Number of days for the transition
   t0 = r_trans_len  / 2, # Midpoint of the transition
   pathogen = 1,
-  susceptibles = 0,
   delay = 1,
   ur = 1,
   r_dir = 2
