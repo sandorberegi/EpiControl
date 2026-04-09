@@ -62,7 +62,7 @@ uk_data$daily_cases_100k[is.na(uk_data$daily_cases_100k)] <- 0
 real_days <- 370L
 ```
 
-Initialize the cluster for parallel computing:
+Initialise the cluster for parallel computing:
 
 ```{r parallel-setup}
 cores <- detectCores() - 1

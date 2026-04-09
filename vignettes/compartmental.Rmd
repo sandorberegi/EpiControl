@@ -72,7 +72,8 @@ This means that:
 -   infectious individuals recover into $R$,
 -   vaccinated individuals move into $V$.
 
-and $\beta, \gamma$ and $\nu$ are the infection, recovery and vaccination rates.
+and $\beta, \gamma$ and $\nu$ are the infection, recovery and
+vaccination rates.
 
 ### Stochastic event interpretation
 
@@ -144,9 +145,16 @@ Noise_pars <- data.frame(
 
 ### Simulation/model projecttion parameters and cost function
 
-We choose the optimal NPI every `rf = 14` days to optimise the following cost function (defined by reward_fun_wd.R): `alpha * abs(C - C_target) + ovp + NPI_cost` where `ovp` is the penalty for cases going above `C_target_pen` We only define a target for daily cases, the cost function requires a death target as well, but we will set the corresponding coefficients to zero. 
+We choose the optimal NPI every `rf = 14` days to optimise the following
+cost function (defined by reward_fun_wd.R):
+`alpha * abs(C - C_target) + ovp + NPI_cost` where `ovp` is the penalty
+for cases going above `C_target_pen` We only define a target for daily
+cases, the cost function requires a death target as well, but we will
+set the corresponding coefficients to zero.
 
-We project forward using a renewal branching process model for a time window of `pred_days = 21 days`. We use an ensemble of `n_ens = 10` simulations to derive the expected cost of each NPI in Action_space.
+We project forward using a renewal branching process model for a time
+window of `pred_days = 21 days`. We use an ensemble of `n_ens = 10`
+simulations to derive the expected cost of each NPI in Action_space.
 
 ```{r define sim pars}
 Action_space <- data.frame(
@@ -373,9 +381,9 @@ parallel::stopCluster(cl)
 
 ### Results
 
-Plot the results
+When we plot the results we observe that the controller aims keeping daily incidence near the target level. As immunity in the population builds up, this can be achieved by periods of "social distancing" and no intervention whilst the most stringent measure, "lockdown" is used only once at the beginning when population immunity is low (below 20%). Once herd immunity is reached no further intervention is applied. At this point above 20% of the population has infection acquired immunity (recovered) and another 45% is protected by the vaccine.
 
-```{r plotting}
+```{r plotting, fig.width=8, fig.height=7}
 
 # Combine Simulation Results
 combined_data <- do.call(rbind, results)
@@ -389,16 +397,242 @@ combined_data <- combined_data %>%
 combined_data <- combined_data %>%
   arrange(sim_id, days, policy)
 
+# show the herd immunity threshold
+R0 <- Epi_pars$R0
+herd_immunity_threshold <- (1 - 1 / R0) * 100
+
+sim1_data <- combined_data %>%
+  filter(sim_id == 1) %>%
+  mutate(
+    immune_pct = (R + V) * 100 / (S + II + V + R)
+  )
+
+# first day herd immunity is reached in sim_id == 1
+reach_day <- sim1_data %>%
+  filter(immune_pct >= herd_immunity_threshold) %>%
+  summarise(reach_day = min(days)) %>%
+  pull(reach_day)
+
+
 policy_labels <- c("1" = "No intervention", "2" = "Social distancing", "3" = "Lockdown")
 
+library(patchwork)
 
-ggplot(combined_data %>% filter(sim_id == 1)) +
+top<-ggplot(combined_data %>% filter(sim_id == 1)) +
   geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = C, color = as.factor(sim_id)), alpha = 0.1) +
   geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
   geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, linewidth=0.25) +
   geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", linewidth=0.25) +
+  annotate(
+  "text",
+  x = sim_settings$ndays * 0.9,
+  y = C_target,
+  label = "Target",
+  vjust = -0.5,
+  hjust = 0,
+  size = 3
+) +
+  geom_vline(
+    xintercept = reach_day,
+    linetype = "dashed",
+    colour = "black",
+    linewidth = 0.5
+  ) +
   labs(x = "Days", y = "Reported cases", color = "Policy") +
   scale_color_manual(values = c("No intervention" = "chartreuse3", "Social distancing" = "violet", "Lockdown" = "red")) +
   guides(color = guide_legend(title = "Policy"))
+
+# Top panel
+bottom <- ggplot(combined_data %>% filter(sim_id == 1), aes(x = days)) +
+  geom_area(aes(y = (R+V)*100 / (S + II + V + R), fill = "V"), alpha = 0.8) +
+  geom_area(aes(y = (R)*100 / (S + II + V + R), fill = "R"), alpha = 0.8) +
+  labs(
+    x = "Days",
+    y = "Immune population %",
+    fill = NULL
+  ) +
+  geom_hline(
+    yintercept = herd_immunity_threshold,
+    linetype = "dashed",
+    colour = "black",
+    linewidth = 0.4
+  ) +
+  geom_vline(
+    xintercept = reach_day,
+    linetype = "dashed",
+    colour = "black",
+    linewidth = 0.5
+  ) +
+annotate(
+  "text",
+  x = sim_settings$ndays * 0.6,
+  y = herd_immunity_threshold,
+  label = "Herd immunity threshold",
+  vjust = -0.5,
+  hjust = 0,
+  size = 3
+) +
+  scale_fill_manual(
+    values = c(
+      "V" = "steelblue",
+      "R" = "tomato"
+    )
+  ) +
+  theme_minimal()
+
+top/bottom
+
+```
+
+### Simulate with a higher vaccination rate
+
+Let's see what happens if we vaccinate people 2x faster.
+
+```{r change-vaccination-rate}
+model_pars$vac_rate <- Epi_pars$vaccination_rate * 2
+
+episim_data <- data.frame(matrix(0, nrow = (sim_settings$ndays), ncol = length(column_names)))
+colnames(episim_data) <- column_names
+
+episim_data$policy <- rep(1, sim_settings$ndays)
+episim_data$days <- 1:(sim_settings$ndays)
+
+st0 <- state(model)
+episim_data[1, comp_names] <- as.numeric(st0[comp_names])
+episim_data[1, "Re"] <- Epi_pars[1, "R0"]
+episim_data[1, "Rew"] <- Epi_pars[1, "R0"]
+episim_data[1, "R0est"] <- Epi_pars[1, "R0"]
+episim_data[1, "Rest"] <- Epi_pars[1, "R0"]
+episim_data[1, "I"] <- 1
+
+episim_data_ens <- replicate(sim_settings$sim_ens, episim_data, simplify = FALSE)
+
+for (ii in 1:sim_settings$sim_ens) {
+  episim_data_ens[[ii]]$sim_id <- rep(ii, sim_settings$ndays)
+}
+
+cl <- makeCluster(Ncores)
+
+clusterExport(cl, ls())
+clusterExport(cl, c("reward_fun_wd", "Epi_pred_wd", "Epi_MPC_run_wd", "episim_data_ens", "episettings", "Action_space", "Epi_pars", "Noise_pars", "R_estim"))
+
+parallel::clusterEvalQ(cl, {
+  library(pbapply)
+  library(VGAM)
+  library(EpiControl)
+})
+
+episettings$cl <- cl
+episettings$model_par <- model_pars
+
+# Run the epicontrol function
+results <- epicontrol(episim_data_ens, episettings)
+
+# Stop the cluster after simulation
+parallel::stopCluster(cl)
+
+
+```
+
+### Results
+
+We can see that the accelerated vaccination programme leads to a shorter outbreak and roughly a 50% reduction in the total number of infections. With the higher vaccination rate, herd immunity is reached after 420 days rather than 680, and by that point only around 10% of the population has been infected.
+
+Note that these simulations do not account for vaccination costs, the cumulative burden of infections in the objective function, or any waning of acquired immunity. Nevertheless, they demonstrate how EpiControl can be used for this kind of scenario analysis.
+
+```{r plotting2, fig.width=8, fig.height=7}
+
+# Combine Simulation Results
+combined_data <- do.call(rbind, results)
+
+combined_data <- combined_data %>%
+  group_by(sim_id, policy) %>%
+  arrange(days) %>%
+  mutate(group = cumsum(c(1, diff(days) != 1))) %>%
+  ungroup()
+
+combined_data <- combined_data %>%
+  arrange(sim_id, days, policy)
+
+sim1_data <- combined_data %>%
+  filter(sim_id == 1) %>%
+  mutate(
+    immune_pct = (R + V) * 100 / (S + II + V + R)
+  )
+
+# first day herd immunity is reached in sim_id == 1
+reach_day <- sim1_data %>%
+  filter(immune_pct >= herd_immunity_threshold) %>%
+  summarise(reach_day = min(days)) %>%
+  pull(reach_day)
+
+
+policy_labels <- c("1" = "No intervention", "2" = "Social distancing", "3" = "Lockdown")
+
+library(patchwork)
+
+top<-ggplot(combined_data %>% filter(sim_id == 1)) +
+  geom_line(data = subset(combined_data, sim_id != 1), aes(x = days, y = C, color = as.factor(sim_id)), alpha = 0.1) +
+  geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0) +
+  geom_line(aes(x = days, y = C, color = factor(policy, labels = policy_labels), group = 1), alpha = 1.0, linewidth=0.25) +
+  geom_hline(yintercept = C_target, linetype = "dashed", color = "blue", linewidth=0.25) +
+  annotate(
+  "text",
+  x = sim_settings$ndays * 0.9,
+  y = C_target,
+  label = "Target",
+  vjust = -0.5,
+  hjust = 0,
+  size = 3
+) +
+  geom_vline(
+    xintercept = reach_day,
+    linetype = "dashed",
+    colour = "black",
+    linewidth = 0.5
+  ) +
+  labs(x = "Days", y = "Reported cases", color = "Policy") +
+  scale_color_manual(values = c("No intervention" = "chartreuse3", "Social distancing" = "violet", "Lockdown" = "red")) +
+  guides(color = guide_legend(title = "Policy"))
+
+# Top panel
+bottom <- ggplot(combined_data %>% filter(sim_id == 1), aes(x = days)) +
+  geom_area(aes(y = (R+V)*100 / (S + II + V + R), fill = "V"), alpha = 0.8) +
+  geom_area(aes(y = (R)*100 / (S + II + V + R), fill = "R"), alpha = 0.8) +
+  labs(
+    x = "Days",
+    y = "Immune population %",
+    fill = NULL
+  ) +
+  geom_hline(
+    yintercept = herd_immunity_threshold,
+    linetype = "dashed",
+    colour = "black",
+    linewidth = 0.4
+  ) +
+  geom_vline(
+    xintercept = reach_day,
+    linetype = "dashed",
+    colour = "black",
+    linewidth = 0.5
+  ) +
+annotate(
+  "text",
+  x = sim_settings$ndays * 0.6,
+  y = herd_immunity_threshold,
+  label = "Herd immunity threshold",
+  vjust = -0.5,
+  hjust = 0,
+  size = 3
+) +
+  scale_fill_manual(
+    values = c(
+      "V" = "steelblue",
+      "R" = "tomato"
+    )
+  ) +
+  theme_minimal()
+
+top/bottom
 
 ```
