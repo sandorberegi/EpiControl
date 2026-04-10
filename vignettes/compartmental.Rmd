@@ -120,7 +120,20 @@ library(ggplot2)
 set.seed(1)
 ```
 
-Let's define model and surveillance noise parameters.
+Let's define model and surveillance noise parameter accounting for
+epresent reporting delays and incomplete ascertainment in observed case
+counts. We model reported cases $C_t$ as a noisy observation of the
+underlying infectious process $I_t$. To account for reporting delays,
+the expected number of reported cases at time $t$ is constructed by
+convolving past infectious counts with a delay distribution
+`Gamma(1:ndays, shape = gen_time / gen_time_var, rate = 1 / gen_time_var)`.
+The delayed count is then observed through a Poisson sampling step
+`pois_input_c <- sum(episimdata[ii:1, 'I'] * Ydel[1:ii])` and
+`C_del <- rpois(1, pois_input_c)` . Optional under-reporting is
+incorporated using a beta-binomial observation model
+`C <- VGAM::rbetabinom.ab(1, C_del, ur_beta_a, ur_beta_b)` with
+`ur_beta_b <- (1 - ur_mean) / ur_mean * ur_beta_a`, applied either to
+the delayed count or, when no delay is included, directly to $I_t$.
 
 ```{r define-parameters}
 Epi_pars <- data.frame(
@@ -143,7 +156,7 @@ Noise_pars <- data.frame(
 )
 ```
 
-### Simulation/model projecttion parameters and cost function
+### Simulation/model projection parameters and cost function
 
 We choose the optimal NPI every `rf = 14` days to optimise the following
 cost function (defined by reward_fun_wd.R):
@@ -186,7 +199,7 @@ sim_settings <- list(
   gamma = 0.95, #discounting factor
   n_ens = 10L, #MC assembly size for 4
   sim_ens = 10L, #assembly size for full simulation
-  rf = 14L, #days 14
+  rf = 14L, #policy review frequency: every days 14
   R_est_wind = 5L, #rf-2 #window for R estimation
   susceptibles = 0,
   pred_days = 21L,
@@ -381,7 +394,15 @@ parallel::stopCluster(cl)
 
 ### Results
 
-When we plot the results we observe that the controller aims keeping daily incidence near the target level. As immunity in the population builds up, this can be achieved by periods of "social distancing" and no intervention whilst the most stringent measure, "lockdown" is used only once at the beginning when population immunity is low (below 20%). Once herd immunity is reached no further intervention is applied. At this point above 20% of the population has infection acquired immunity (recovered) and another 45% is protected by the vaccine.
+When we plot the results we observe that the controller aims to keep
+daily incidence near the target level. As immunity in the population
+builds up, this can be achieved by periods of "social distancing" and no
+intervention whilst the most stringent measure, "lockdown" is used only
+once at the beginning when population immunity is low (below 20%). Once
+herd immunity is reached no further intervention is applied. At this
+point above 20% of the population has infection acquired immunity
+(recovered) and another 45% is protected by the vaccine. The oscillations in incidence arise because the controller can only choose between three discrete intervention options and policies are reviewed every 14 days. As a result, it cannot continuously fine-tune transmission to maintain exactly 
+R=1. In addition, reporting delays mean that control actions are based on lagged information, which can lead to responses being applied slightly late.
 
 ```{r plotting, fig.width=8, fig.height=7}
 
@@ -412,7 +433,6 @@ reach_day <- sim1_data %>%
   filter(immune_pct >= herd_immunity_threshold) %>%
   summarise(reach_day = min(days)) %>%
   pull(reach_day)
-
 
 policy_labels <- c("1" = "No intervention", "2" = "Social distancing", "3" = "Lockdown")
 
@@ -536,9 +556,16 @@ parallel::stopCluster(cl)
 
 ### Results
 
-We can see that the accelerated vaccination programme leads to a shorter outbreak and roughly a 50% reduction in the total number of infections. With the higher vaccination rate, herd immunity is reached after 420 days rather than 680, and by that point only around 10% of the population has been infected.
+We can see that the accelerated vaccination programme leads to a shorter
+outbreak and roughly a 50% reduction in the total number of infections.
+With the higher vaccination rate, herd immunity is reached after 420
+days rather than 680, and by that point only around 10% of the
+population has been infected.
 
-Note that these simulations do not account for vaccination costs, the cumulative burden of infections in the objective function, or any waning of acquired immunity. Nevertheless, they demonstrate how EpiControl can be used for this kind of scenario analysis.
+Note that these simulations do not account for vaccination costs, the
+cumulative burden of infections in the objective function, or any waning
+of acquired immunity. Nevertheless, they demonstrate how EpiControl can
+be used for this kind of scenario analysis.
 
 ```{r plotting2, fig.width=8, fig.height=7}
 
