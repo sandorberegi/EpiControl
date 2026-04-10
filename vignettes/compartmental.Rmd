@@ -395,12 +395,12 @@ parallel::stopCluster(cl)
 ### Results
 
 When we plot the results we observe that the controller aims to keep
-daily incidence near the target level. As immunity in the population
+daily incidence near the target level. We focus on the highlighted realisation, while also showing other epidemic realisations as grey curves to illustrate that, although stochasticity affects the exact trajectory, the overall behaviour remains similar. As immunity in the population
 builds up, this can be achieved by periods of "social distancing" and no
 intervention whilst the most stringent measure, "lockdown" is used only
 once at the beginning when population immunity is low (below 20%). Once
 herd immunity is reached no further intervention is applied. At this
-point above 20% of the population has infection acquired immunity
+point around 20% of the population has infection acquired immunity
 (recovered) and another 45% is protected by the vaccine. The oscillations in incidence arise because the controller can only choose between three discrete intervention options and policies are reviewed every 14 days. As a result, it cannot continuously fine-tune transmission to maintain exactly 
 R=1. In addition, reporting delays mean that control actions are based on lagged information, which can lead to responses being applied slightly late.
 
@@ -559,7 +559,7 @@ parallel::stopCluster(cl)
 We can see that the accelerated vaccination programme leads to a shorter
 outbreak and roughly a 50% reduction in the total number of infections.
 With the higher vaccination rate, herd immunity is reached after 420
-days rather than 680, and by that point only around 10% of the
+days rather than around 700, and by that point only around 12% of the
 population has been infected.
 
 Note that these simulations do not account for vaccination costs, the
