@@ -72,7 +72,7 @@
                         <h4 data-toc-skip class="author">Sandor
 Beregi</h4>
             
-            <h4 data-toc-skip class="date">2026-04-09</h4>
+            <h4 data-toc-skip class="date">2026-04-10</h4>
       
       
       <div class="d-none name"><code>compartmental.Rmd</code></div>
@@ -175,7 +175,21 @@ compartment are then aggregated into the state update.</p>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span></code></pre></div>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></code></pre></div>
-<p>Let’s define model and surveillance noise parameters.</p>
+<p>Let’s define model and surveillance noise parameter accounting for
+epresent reporting delays and incomplete ascertainment in observed case
+counts. We model reported cases <span class="math inline">\(C_t\)</span>
+as a noisy observation of the underlying infectious process <span class="math inline">\(I_t\)</span>. To account for reporting delays, the
+expected number of reported cases at time <span class="math inline">\(t\)</span> is constructed by convolving past
+infectious counts with a delay distribution
+<code>Gamma(1:ndays, shape = gen_time / gen_time_var, rate = 1 / gen_time_var)</code>.
+The delayed count is then observed through a Poisson sampling step
+<code>pois_input_c &lt;- sum(episimdata[ii:1, 'I'] * Ydel[1:ii])</code>
+and <code>C_del &lt;- rpois(1, pois_input_c)</code> . Optional
+under-reporting is incorporated using a beta-binomial observation model
+<code>C &lt;- VGAM::rbetabinom.ab(1, C_del, ur_beta_a, ur_beta_b)</code>
+with <code>ur_beta_b &lt;- (1 - ur_mean) / ur_mean * ur_beta_a</code>,
+applied either to the delayed count or, when no delay is included,
+directly to <span class="math inline">\(I_t\)</span>.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">Epi_pars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  Pathogen <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"COVID-19"</span><span class="op">)</span>,</span>
@@ -196,7 +210,7 @@ compartment are then aggregated into the state update.</p>
 <span>  ur_beta_a <span class="op">=</span> <span class="fl">50.0</span>   <span class="co"># Beta distribution alpha for under-reporting</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
-<h3 id="simulationmodel-projecttion-parameters-and-cost-function">Simulation/model projecttion parameters and cost function<a class="anchor" aria-label="anchor" href="#simulationmodel-projecttion-parameters-and-cost-function"></a>
+<h3 id="simulationmodel-projection-parameters-and-cost-function">Simulation/model projection parameters and cost function<a class="anchor" aria-label="anchor" href="#simulationmodel-projection-parameters-and-cost-function"></a>
 </h3>
 <p>We choose the optimal NPI every <code>rf = 14</code> days to optimise
 the following cost function (defined by reward_fun_wd.R):
@@ -239,7 +253,7 @@ NPI in Action_space.</p>
 <span>  gamma <span class="op">=</span> <span class="fl">0.95</span>, <span class="co">#discounting factor</span></span>
 <span>  n_ens <span class="op">=</span> <span class="fl">10L</span>, <span class="co">#MC assembly size for 4</span></span>
 <span>  sim_ens <span class="op">=</span> <span class="fl">10L</span>, <span class="co">#assembly size for full simulation</span></span>
-<span>  rf <span class="op">=</span> <span class="fl">14L</span>, <span class="co">#days 14</span></span>
+<span>  rf <span class="op">=</span> <span class="fl">14L</span>, <span class="co">#policy review frequency: every days 14</span></span>
 <span>  R_est_wind <span class="op">=</span> <span class="fl">5L</span>, <span class="co">#rf-2 #window for R estimation</span></span>
 <span>  susceptibles <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>  pred_days <span class="op">=</span> <span class="fl">21L</span>,</span>
@@ -430,14 +444,20 @@ transmission parameter is reduced according to R_coeff.</p>
 <div class="section level3">
 <h3 id="results">Results<a class="anchor" aria-label="anchor" href="#results"></a>
 </h3>
-<p>When we plot the results we observe that the controller aims keeping
+<p>When we plot the results we observe that the controller aims to keep
 daily incidence near the target level. As immunity in the population
 builds up, this can be achieved by periods of “social distancing” and no
 intervention whilst the most stringent measure, “lockdown” is used only
 once at the beginning when population immunity is low (below 20%). Once
 herd immunity is reached no further intervention is applied. At this
 point above 20% of the population has infection acquired immunity
-(recovered) and another 45% is protected by the vaccine.</p>
+(recovered) and another 45% is protected by the vaccine. The
+oscillations in incidence arise because the controller can only choose
+between three discrete intervention options and policies are reviewed
+every 14 days. As a result, it cannot continuously fine-tune
+transmission to maintain exactly R=1. In addition, reporting delays mean
+that control actions are based on lagged information, which can lead to
+responses being applied slightly late.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># Combine Simulation Results</span></span>
@@ -467,7 +487,6 @@ point above 20% of the population has infection acquired immunity
 <span>  <span class="fu"><a href="https://rdrr.io/r/stats/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">immune_pct</span> <span class="op">&gt;=</span> <span class="va">herd_immunity_threshold</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span>reach_day <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">days</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/pull.html" class="external-link">pull</a></span><span class="op">(</span><span class="va">reach_day</span><span class="op">)</span></span>
-<span></span>
 <span></span>
 <span><span class="va">policy_labels</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"1"</span> <span class="op">=</span> <span class="st">"No intervention"</span>, <span class="st">"2"</span> <span class="op">=</span> <span class="st">"Social distancing"</span>, <span class="st">"3"</span> <span class="op">=</span> <span class="st">"Lockdown"</span><span class="op">)</span></span>
 <span></span>
@@ -712,7 +731,7 @@ be used for this kind of scenario analysis.</p>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Sandor Beregi.</p>
+  <p>Developed by Sandor Beregi, Kris Parag.</p>
 </div>
 
 <div class="pkgdown-footer-right">
