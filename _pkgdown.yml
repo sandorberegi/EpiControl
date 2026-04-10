@@ -2,3 +2,12 @@ url: ~
 template:
   bootstrap: 5
 
+home:
+  sidebar:
+    structure: [links, license, citation, authors, dev]
+
+authors:
+  sidebar:
+    roles: [cre, aut, ctb]
+  footer:
+    roles: [cre, aut, ctb]

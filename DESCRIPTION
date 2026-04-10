@@ -3,6 +3,12 @@ Type: Package
 Title: Simulation Framework for Epidemic Dynamics and Optimal Control Policies
 Version: 0.3.1
 Author: Sandor Beregi
+Authors@R: c(
+  person("Sandor", "Beregi",
+         email = "you@example.com",
+         role = c("aut", "cre")),
+  person("Kris", "Parag",
+         role = "ctb"))
 Maintainer: Sandor Beregi <s.beregi@imperial.ac.uk>
 Description: A framework for simulating epidemic dynamics and evaluating optimal control policies. 
     The package supports modelling policy interventions such as lockdown vaccination, and variant-specific adjustments. It also includes tools for immunity modeling, and assessing 
