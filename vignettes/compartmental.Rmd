@@ -281,7 +281,7 @@ event_names <- c("Infections", "Vaccinations", "Recoveries")
 
 track_R <- c("Re","Rew","Rest","R0est","policy","R_coeff","I","C","Lambda","Lambda_C")
 
-comp_names  <- names(state(model))  # e.g. S IR ID R D
+comp_names  <- names(state(model))
 
 model$events
 
