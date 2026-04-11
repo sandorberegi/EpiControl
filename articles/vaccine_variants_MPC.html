@@ -72,7 +72,7 @@
                         <h4 data-toc-skip class="author">Sandor
 Beregi</h4>
             
-            <h4 data-toc-skip class="date">2026-03-27</h4>
+            <h4 data-toc-skip class="date">2026-04-11</h4>
       
       
       <div class="d-none name"><code>vaccine_variants_MPC.Rmd</code></div>
@@ -125,7 +125,7 @@ environment.</p>
 <span><span class="va">uk_data</span><span class="op">$</span><span class="va">daily_cases_100k</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">uk_data</span><span class="op">$</span><span class="va">daily_cases_100k</span><span class="op">)</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">0</span></span>
 <span></span>
 <span><span class="va">real_days</span> <span class="op">&lt;-</span> <span class="fl">370L</span></span></code></pre></div>
-<p>Initialize the cluster for parallel computing:</p>
+<p>Initialise the cluster for parallel computing:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cores</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/parallel/detectCores.html" class="external-link">detectCores</a></span><span class="op">(</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1</span></span>
 <span><span class="va">cl</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/parallel/makeCluster.html" class="external-link">makeCluster</a></span><span class="op">(</span><span class="va">cores</span><span class="op">)</span></span>
@@ -435,7 +435,7 @@ introducing a “lockdown” and no interventions.</p>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Sandor Beregi.</p>
+  <p>Developed by Sandor Beregi, Kris Parag.</p>
 </div>
 
 <div class="pkgdown-footer-right">
