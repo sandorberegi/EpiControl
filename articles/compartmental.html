@@ -634,8 +634,9 @@ can lead to responses being applied slightly late.</p>
 <p>We again simulate an ensemble of 10 scenarios and highlight the one
 whose intervention trajectory is closest to the reference case. To
 quantify this, we define the metric
-<code>cumsum(policy_efficacy + vaccinated population)</code> and select
-the scenario whose resulting trajectory is nearest to the reference.</p>
+<code>cumsum(policy_efficacy * unvaccinated_population + vaccinated_population)</code>
+and select the scenario whose resulting trajectory is nearest to the
+reference.</p>
 <p>We can see that the accelerated vaccination programme leads to a
 shorter outbreak and roughly a 30% reduction in the total number of
 infections. With the higher vaccination rate, herd immunity is reached
